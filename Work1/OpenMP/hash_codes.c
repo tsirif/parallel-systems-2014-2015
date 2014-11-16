@@ -28,7 +28,7 @@ int i = 0, j = 0;
 
 // Index of element to be accessed.
 int index;
-int index2;
+
 #pragma omp parallel shared(codes , X , low , step  ) private(i,j,index)
   {
     #pragma omp for schedule( dynamic , chunk ) private(i,j,index) nowait

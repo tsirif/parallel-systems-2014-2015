@@ -52,13 +52,18 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     // This is done so as not to create a huge number of threads
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
-    if ( lv < 4  )
+    if ( lv < 3   )
     {
       
       // Loop indexes.
       int i ; 
       int j = 0;
-
+      
+      
+      int size[MAXBINS] = {0};
+      int offSet[MAXBINS] = {0};
+      
+      
       // Find which child each point belongs to 
 
     
@@ -93,24 +98,26 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         }
       }
       
-      
-      
       // scan prefix (must change this code)  
       int offset = 0 ;
       for(i=0; i<MAXBINS; i++){
         int ss = BinSizes[i];
+        size[i] = ss ;
         BinSizes[i] = offset;
         offset += ss;
       }
       
+     
       
-      //~ exit(-1);
+      //~ // Find the bin in which each point belongs.
       for(j=0; j<N; j++){
         unsigned int ii = (morton_codes[j]>>sft) & 0x07;
         permutation_vector[BinSizes[ii]] = index[j];
         sorted_morton_codes[BinSizes[ii]] = morton_codes[j];
         BinSizes[ii]++;
       }
+     
+      
       
       
       //swap the index pointers  
@@ -123,18 +130,17 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     
       
 
-      int size[MAXBINS] = {0};
-      int offSet[MAXBINS] = {0};
+      
       // Set for every bin from where it's elements begin(offset)
       // and how many of them it has.
-      size[0] = BinSizes[0] ;
+      //~ size[0] = BinSizes[0] ;
       //~ #pragma omp parallel for schedule(guided) shared(size,offset)
       //~ #pragma private(i)
       
       
       for (i = 1 ; i < MAXBINS ; i++)
       {
-        size[i] = BinSizes[i] - BinSizes[i-1];
+        //~ size[i] = BinSizes[i] - BinSizes[i-1];
         offSet[i] = BinSizes[i-1] ;
         //~ printf("i %d size %d \n",i,size[i]);
         //~ printf("i %d offset %d \n",i,offSet[i]);

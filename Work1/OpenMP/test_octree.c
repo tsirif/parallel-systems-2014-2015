@@ -53,18 +53,18 @@ int main(int argc, char** argv){
   find_max(max, X, N);
   gettimeofday (&endwtime, NULL);
 
-  //~ double max_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-				//~ /1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+  double max_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
+				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
         
   gettimeofday (&startwtime, NULL); 
   find_min(min, X, N);
   gettimeofday (&endwtime, NULL);
 
-  //~ double min_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-				//~ /1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+  double min_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
+				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
         
-  //~ printf("Max time %f \n", max_time );
-  //~ printf("Min time %f \n", min_time );
+  printf("Max time %f \n", max_time );
+  printf("Min time %f \n", min_time );
 
   int nbins = (1 << maxlev); // maximum number of boxes at the leaf level
   
