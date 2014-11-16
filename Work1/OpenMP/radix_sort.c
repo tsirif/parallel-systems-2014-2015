@@ -41,21 +41,9 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 
   if( N<=population_threshold || sft < 0) { // Base case. The node is a leaf
 
-    //~ memcpy(permutation_vector, index, N*sizeof(unsigned int)); // Copy the pernutation vector
-    //~ memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int)); // Copy the Morton codes 
-    #pragma omp parallel 
-    {
-      #pragma omp sections 
-      {
-        #pragma omp section
-        //swap the index pointers  
-        memcpy(permutation_vector, index, N*sizeof(unsigned int)); // Copy the pernutation vector
-    
-        #pragma omp section
-        //swap the code pointers 
-        memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int)); // Copy the Morton codes 
-      }  
-    }
+    memcpy(permutation_vector, index, N*sizeof(unsigned int)); // Copy the pernutation vector
+    memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int)); // Copy the Morton codes 
+
     return;
   }
   else{
@@ -124,27 +112,12 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         BinSizes[ii]++;
       }
       
-
-      #pragma omp parallel 
-      {
-        #pragma omp sections 
-        {
-          #pragma omp section
-          //swap the index pointers  
-          swap(&index, &permutation_vector);
-    
-          #pragma omp section
-          //swap the code pointers 
-          swap_long(&morton_codes, &sorted_morton_codes);
-        }  
-      }
       
-      
-      //~ //swap the index pointers  
-      //~ swap(&index, &permutation_vector);
-  //~ 
-      //~ //swap the code pointers 
-      //~ swap_long(&morton_codes, &sorted_morton_codes);
+      //swap the index pointers  
+      swap(&index, &permutation_vector);
+  
+      //swap the code pointers 
+      swap_long(&morton_codes, &sorted_morton_codes);
 
       /* Call the function recursively to split the lower levels */
     
