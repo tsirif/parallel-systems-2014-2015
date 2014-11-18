@@ -27,3 +27,13 @@
 *.i*86
 *.x86_64
 *.hex
+
+# Compressed Files
+*.tar.*
+
+# Text/Log Files
+*.txt
+
+# Python
+*.pyc
+.ropeproject/
