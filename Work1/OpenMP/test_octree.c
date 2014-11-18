@@ -68,7 +68,6 @@ int main(int argc, char** argv){
 
   int nbins = (1 << maxlev); // maximum number of boxes at the leaf level
   
-  //~ omp_set_nested(1);
   
   int it = 0; 
   // Independent runs

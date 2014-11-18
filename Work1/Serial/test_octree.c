@@ -45,16 +45,23 @@ int main(int argc, char** argv){
 
   /* Find the boundaries of the space */
   float max[DIM], min[DIM];
+  
+  
+  gettimeofday (&startwtime, NULL); 
   find_max(max, X, N);
-  
-  
+  gettimeofday (&endwtime, NULL);
+
+  double max_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
+				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+        
   gettimeofday (&startwtime, NULL); 
   find_min(min, X, N);
   gettimeofday (&endwtime, NULL);
 
   double min_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-  
+        
+  printf("Max time %f \n", max_time );
   printf("Min time %f \n", min_time );
 
 
