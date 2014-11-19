@@ -33,6 +33,7 @@
 
 # Text/Log Files
 *.txt
+*.swp
 
 # Python
 *.pyc

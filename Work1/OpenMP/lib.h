@@ -7,5 +7,4 @@
 #define THREADS 8
 #define DIM 3
 
-
 #endif
