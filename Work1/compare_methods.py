@@ -56,7 +56,7 @@ def compare_results(results):
     ax.set_ylabel('Duration (ms)')
     ax.set_title('Duration by library and method')
     ax.set_xticks(ind+width)
-    ax.set_xticklabels(LIBRARIES)
+    ax.set_xticklabels(results[METHODS[0]].keys())
     f = lambda x: x[0]
     ax.legend(map(f, method_rects), METHODS)
 
@@ -76,7 +76,7 @@ def compare_results(results):
 if __name__ == '__main__':
     args = sys.argv[1:]
     if not args:
-        args = ['1000000', '0', '100', '10', '8']
+        args = ['1000000', '0', '20', '20', '10']
     compile_and_run_methods(args)
     results = get_method_results()
     print results

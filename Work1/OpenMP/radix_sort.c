@@ -32,22 +32,35 @@ void parallel_scan_exclude(int* a, int n)
   }
   int i;
   int c[n/2];
-  for (i = 0; i < n/2; ++i)
+  /*#pragma omp parallel private(i)*/
   {
-    c[i] = a[2*i] + a[2*i+1];
-  }
-  parallel_scan_exclude(c, n/2);
-  int b[n];
-  for (i = 0; i < n; ++i)
-  {
-    if (i%2 == 0)
-      b[i] = c[i/2];
-    else
-      b[i] = c[(i-1)/2] + a[i-1];
-  }
-  for (i = 0; i < n; ++i)
-  {
-    a[i] = b[i];
+    /*#pragma omp single*/
+    {
+      for (i = 0; i < n/2; ++i)
+      {
+        /*#pragma omp task */
+        c[i] = a[2*i] + a[2*i+1];
+      }
+      /*#pragma omp taskwait*/
+      parallel_scan_exclude(c, n/2);
+      int b[n];
+      for (i = 0; i < n; ++i)
+      {
+        /*#pragma omp task*/
+        {
+          if (i%2 == 0)
+            b[i] = c[i/2];
+          else
+            b[i] = c[(i-1)/2] + a[i-1];
+        }
+      }
+      /*#pragma omp taskwait*/
+      for (i = 0; i < n; ++i)
+      {
+        /*#pragma omp task*/
+        a[i] = b[i];
+      }
+    }
   }
 }
 
@@ -129,7 +142,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         bin_offsets[ii]++;
       }
 
-      printf("\nBIN-OFFSET-0: %d\n", bin_offsets[0]);
+      /*printf("\nBIN-OFFSET-0: %d\n", bin_offsets[0]);*/
      
       //swap the index pointers  
       swap(&index, &permutation_vector);
@@ -169,7 +182,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     else
     {
       //~ // If there are enough threads to execute the program in parallel.
-      //~ 
       //~ // Find which child each point belongs to 
       int j = 0, i = 0;
       for (j = 0; j < N; ++j)
