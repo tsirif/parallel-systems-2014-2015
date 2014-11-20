@@ -24,8 +24,10 @@ def compile_and_run_methods(args):
 
 
 def get_method_results():
-    results = defaultdict(defaultdict)
+    time_results = defaultdict(defaultdict)
+    success_results = defaultdict(bool)
     for method in METHODS:
+        success_results[method] = True
         counter = defaultdict(int)
         mean_duration = defaultdict(float)
         with open("./" + method + "/results.txt", 'r') as f:
@@ -35,10 +37,16 @@ def get_method_results():
                         counter[library] += 1
                         duration = float(line.split()[-1])
                         mean_duration[library] += duration
+                if "Index" in line:
+                    if line.split()[-1] != 'PASS':
+                        success_results[method] = False
+                if "Encoding" in line:
+                    if line.split()[-1] != 'PASS':
+                        success_results[method] = False
         for library in LIBRARIES:
             mean_duration[library] /= counter[library]
-        results[method] = mean_duration
-    return results
+        time_results[method] = mean_duration
+    return time_results, success_results
 
 
 def compare_results(results):
@@ -57,7 +65,10 @@ def compare_results(results):
     ax.set_title('Duration by library and method')
     ax.set_xticks(ind+width)
     ax.set_xticklabels(results[METHODS[0]].keys())
-    f = lambda x: x[0]
+
+    def f(x):
+        return x[0]
+
     ax.legend(map(f, method_rects), METHODS)
 
     def autolabel(rects):
@@ -76,8 +87,10 @@ def compare_results(results):
 if __name__ == '__main__':
     args = sys.argv[1:]
     if not args:
-        args = ['1000000', '0', '20', '20', '10']
+        args = ['1000000', '0', '20', '30', '10']
     compile_and_run_methods(args)
-    results = get_method_results()
-    print results
-    compare_results(results)
+    time_results, success_results = get_method_results()
+    print time_results
+    for method, success in success_results.items():
+        print method + " implementation was successful: " + str(success)
+    compare_results(time_results)
