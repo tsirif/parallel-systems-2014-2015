@@ -46,7 +46,8 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   }
   else{
     
-
+      
+      
     
     // Find which child each point belongs to 
     int j = 0;
@@ -76,6 +77,8 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       sorted_morton_codes[BinSizes[ii]] = morton_codes[j];
       BinSizes[ii]++;
     }
+    
+
     
     //swap the index pointers  
     swap(&index, &permutation_vector);
