@@ -8,7 +8,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-METHODS = ['OpenMP', 'Serial']
+METHODS = ['OpenMP', 'Serial','Pthreads']
 LIBRARIES = ['hash', 'morton', 'radix', 'rearrange']
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 
