@@ -4,8 +4,7 @@
 #include "lib.h"
 
 #define MAXBINS 8
-#define MAXLEVEL 3
-
+#define MAXLEVEL 1
 
 void swap_long(unsigned long int **x, unsigned long int **y)
 {
@@ -145,7 +144,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
        *  parameters of the sorting function and the bin size and offset
        *  arrays.
       **/
-      #pragma omp parallel for schedule(guided) private(i)
+      #pragma omp parallel for private(i)
       for (i = 0; i < MAXBINS; ++i)
       {
         int offset = (i>0) ? bin_offsets[i-1] : 0;
