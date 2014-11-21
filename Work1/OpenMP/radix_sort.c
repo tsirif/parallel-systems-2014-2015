@@ -32,35 +32,24 @@ void parallel_scan_exclude(int* a, int n)
   }
   int i;
   int c[n/2];
-  /*#pragma omp parallel private(i)*/
+  for (i = 0; i < n/2; ++i)
   {
-    /*#pragma omp single*/
+    c[i] = a[2*i] + a[2*i+1];
+  }
+  parallel_scan_exclude(c, n/2);
+  int b[n];
+  for (i = 0; i < n; ++i)
+  {
     {
-      for (i = 0; i < n/2; ++i)
-      {
-        /*#pragma omp task */
-        c[i] = a[2*i] + a[2*i+1];
-      }
-      /*#pragma omp taskwait*/
-      parallel_scan_exclude(c, n/2);
-      int b[n];
-      for (i = 0; i < n; ++i)
-      {
-        /*#pragma omp task*/
-        {
-          if (i%2 == 0)
-            b[i] = c[i/2];
-          else
-            b[i] = c[(i-1)/2] + a[i-1];
-        }
-      }
-      /*#pragma omp taskwait*/
-      for (i = 0; i < n; ++i)
-      {
-        /*#pragma omp task*/
-        a[i] = b[i];
-      }
+      if (i%2 == 0)
+        b[i] = c[i/2];
+      else
+        b[i] = c[(i-1)/2] + a[i-1];
     }
+  }
+  for (i = 0; i < n; ++i)
+  {
+    a[i] = b[i];
   }
 }
 
@@ -86,7 +75,9 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   }
   else
   {
-    int bin_sizes[MAXBINS] = {0};
+    int bin_offsets[MAXBINS] = {0};
+    int bin_offsets_cnt[MAXBINS] = {0};
+    int i = 0, j = 0;
     // If we are not deep enough in the recursive algorithm 
     // use the parallel MSB radix sort. 
     // This is done so as not to create a huge number of threads
@@ -94,18 +85,12 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     // be greater than the time we save by parallelizing the code.
     if (lv < MAXLEVEL)
     {
-      // Loop indeces.
-      int i; 
-      int j = 0;
-      
-      int bin_offsets[MAXBINS] = {0};
-    
       // Find which child each point belongs to .
-      #pragma omp parallel shared(morton_codes, bin_sizes) private(j)
+      #pragma omp parallel private(i, j)
       {
         // Thread local variable used for calculating the number of
         // elements that are in every bin. 
-        int local_bin_sizes[MAXBINS] = {0};
+        int local_bin_offsets[MAXBINS] = {0};
 
         // Every thread finds the bin where it's corresponding points
         // belong to.
@@ -113,7 +98,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         for (j = 0; j < N; ++j)
         {
           unsigned int ii = (morton_codes[j]>>sft) & 0x07;
-          local_bin_sizes[ii]++;
+          local_bin_offsets[ii]++;
         }
         
         // Synchronization :
@@ -126,23 +111,27 @@ void truncated_radix_sort(unsigned long int *morton_codes,
           {
             // Add to the total number of elements of bin #i
             // the ones found by the current thread.
-            bin_offsets[i] = bin_sizes[i] += local_bin_sizes[i];
+            bin_offsets[i] += local_bin_offsets[i];
           }
         }
       }
 
-      parallel_scan_exclude(bin_offsets, MAXBINS);
+      bin_offsets_cnt[0] = 0;
+      for (i = 1; i < MAXBINS; ++i)
+      {
+        bin_offsets_cnt[i] = bin_offsets_cnt[i-1] + bin_offsets[i-1];
+        bin_offsets[i-1] = bin_offsets_cnt[i];
+      }
+      bin_offsets[MAXBINS-1] += bin_offsets[MAXBINS-2];
 
       // Find the bin in which each point belongs.
       for (j = 0; j < N; ++j)
       {
         unsigned int ii = (morton_codes[j]>>sft) & 0x07;
-        permutation_vector[bin_offsets[ii]] = index[j];
-        sorted_morton_codes[bin_offsets[ii]] = morton_codes[j];
-        bin_offsets[ii]++;
+        permutation_vector[bin_offsets_cnt[ii]] = index[j];
+        sorted_morton_codes[bin_offsets_cnt[ii]] = morton_codes[j];
+        bin_offsets_cnt[ii]++;
       }
-
-      /*printf("\nBIN-OFFSET-0: %d\n", bin_offsets[0]);*/
      
       //swap the index pointers  
       swap(&index, &permutation_vector);
@@ -156,69 +145,11 @@ void truncated_radix_sort(unsigned long int *morton_codes,
        *  parameters of the sorting function and the bin size and offset
        *  arrays.
       **/
-      #pragma omp parallel private(i)
-      //~ #pragma shared( morton_codes , sorted_morton_codes , 
-      //~ #pragma permutation_vector, index , level_record , size , 
-      //~ #pragma population_threshold , sft , lv ) private( i )
-      {
-        // Define a parallel loop for the recursive calls.
-        #pragma omp for schedule(guided) 
-        for (i = 0; i < MAXBINS; ++i)
-        {
-          int offset = 0;
-          if (i != 0)
-            offset = bin_offsets[i-1];
-          truncated_radix_sort(&morton_codes[offset],
-              &sorted_morton_codes[offset],
-              &permutation_vector[offset],
-              &index[offset], &level_record[offset],
-              bin_sizes[i],
-              population_threshold,
-              sft-3, lv+1);
-        } 
-      }
-    }  // if lv < MAXLEVEL
-    // If not execute the recursive call serially.
-    else
-    {
-      //~ // If there are enough threads to execute the program in parallel.
-      //~ // Find which child each point belongs to 
-      int j = 0, i = 0;
-      for (j = 0; j < N; ++j)
-      {
-        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
-        bin_sizes[ii]++;
-      }  
-
-
-      parallel_scan_exclude(bin_sizes, MAXBINS);
-      // scan prefix (must change this code)  
-      /*int offset = 0, i = 0;*/
-      /*for(i=0; i<MAXBINS; i++){*/
-        /*int ss = BinSizes[i];*/
-        /*BinSizes[i] = offset;*/
-        /*offset += ss;*/
-      /*}*/
-
-      for (j = 0; j < N; ++j)
-      {
-        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
-        permutation_vector[bin_sizes[ii]] = index[j];
-        sorted_morton_codes[bin_sizes[ii]] = morton_codes[j];
-        bin_sizes[ii]++;
-      }
-
-      //swap the index pointers  
-      swap(&index, &permutation_vector);
-
-      //swap the code pointers 
-      swap_long(&morton_codes, &sorted_morton_codes);
-
-      /* Call the function recursively to split the lower levels */
-      int offset = 0;
+      #pragma omp parallel for schedule(guided) private(i)
       for (i = 0; i < MAXBINS; ++i)
       {
-        int size = bin_sizes[i] - offset;
+        int offset = (i>0) ? bin_offsets[i-1] : 0;
+        int size = bin_offsets[i] - offset;
         truncated_radix_sort(&morton_codes[offset],
             &sorted_morton_codes[offset],
             &permutation_vector[offset],
@@ -226,8 +157,53 @@ void truncated_radix_sort(unsigned long int *morton_codes,
             size,
             population_threshold,
             sft-3, lv+1);
-        offset += size;
+      } 
+    }  // should we run in parallel?
+    // If not execute the recursive call serially.
+    else
+    {
+      for (j = 0; j < N; ++j)
+      {
+        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
+        bin_offsets[ii]++;
       }
-    }
-  }
+
+      // scan prefix (must change this code)  
+      bin_offsets_cnt[0] = 0;
+      for (i = 1; i < MAXBINS; ++i)
+      {
+        bin_offsets_cnt[i] = bin_offsets_cnt[i-1] + bin_offsets[i-1];
+        bin_offsets[i-1] = bin_offsets_cnt[i];
+      }
+      bin_offsets[MAXBINS-1] += bin_offsets[MAXBINS-2];
+      
+      for (j = 0; j < N; ++j)
+      {
+        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
+        permutation_vector[bin_offsets_cnt[ii]] = index[j];
+        sorted_morton_codes[bin_offsets_cnt[ii]] = morton_codes[j];
+        bin_offsets_cnt[ii]++;
+      }
+      
+      //swap the index pointers  
+      swap(&index, &permutation_vector);
+
+      //swap the code pointers 
+      swap_long(&morton_codes, &sorted_morton_codes);
+
+      /* Call the function recursively to split the lower levels */
+      for (i = 0; i < MAXBINS; ++i)
+      {
+        int offset = (i>0) ? bin_offsets[i-1] : 0;
+        int size = bin_offsets[i] - offset;
+        truncated_radix_sort(&morton_codes[offset], 
+             &sorted_morton_codes[offset], 
+             &permutation_vector[offset], 
+             &index[offset], &level_record[offset], 
+             size, 
+             population_threshold,
+             sft-3, lv+1);
+      }
+    }  // should we run in parallel?
+  }  // have we reached a leaf node?
 }
