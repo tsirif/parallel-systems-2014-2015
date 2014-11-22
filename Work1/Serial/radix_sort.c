@@ -5,7 +5,7 @@
 #define MAXBINS 8
 
 
-void swap_long(unsigned long int **x, unsigned long int **y){
+inline void swap_long(unsigned long int **x, unsigned long int **y){
 
   unsigned long int *tmp;
   tmp = x[0];
@@ -14,7 +14,7 @@ void swap_long(unsigned long int **x, unsigned long int **y){
 
 }
 
-void swap(unsigned int **x, unsigned int **y){
+inline void swap(unsigned int **x, unsigned int **y){
 
   unsigned int *tmp;
   tmp = x[0];
@@ -27,72 +27,63 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 			  unsigned long int *sorted_morton_codes, 
 			  unsigned int *permutation_vector,
 			  unsigned int *index,
-			  int *level_record,
+			  unsigned int *level_record,
 			  int N, 
 			  int population_threshold,
 			  int sft, int lv){
 
   int BinSizes[MAXBINS] = {0};
+  int BinCursor[MAXBINS] = {0};
   unsigned int *tmp_ptr;
   unsigned long int *tmp_code;
 
-  level_record[0] = lv; // record the level of the node
 
-  if(N<=population_threshold || sft < 0) { // Base case. The node is a leaf
+  if(N<=0){
+
+    return;
+  }
+  else if(N<=population_threshold || sft < 0) { // Base case. The node is a leaf
+
+    level_record[0] = lv; // record the level of the node
     memcpy(permutation_vector, index, N*sizeof(unsigned int)); // Copy the pernutation vector
     memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int)); // Copy the Morton codes 
 
     return;
   }
   else{
-    
-      
-      
-    
+
+    level_record[0] = lv;
     // Find which child each point belongs to 
-    int j = 0;
-    for(j=0; j<N; j++){
+    for(int j=0; j<N; j++){
       unsigned int ii = (morton_codes[j]>>sft) & 0x07;
       BinSizes[ii]++;
-    }  
-    
-    //~ int it ;    
-    //~ for ( it = 0 ; it < MAXBINS ; it++)
-      //~ {
-        //~ printf("i = %d Bin Data=%d \n",it,BinSizes[it]);
-      //~ }
-    //~ exit(1);
+    }
 
     // scan prefix (must change this code)  
-    int offset = 0, i = 0;
-    for(i=0; i<MAXBINS; i++){
+    int offset = 0;
+    for(int i=0; i<MAXBINS; i++){
       int ss = BinSizes[i];
-      BinSizes[i] = offset;
+      BinCursor[i] = offset;
       offset += ss;
+      BinSizes[i] = offset;
     }
     
-    for(j=0; j<N; j++){
+    for(int j=0; j<N; j++){
       unsigned int ii = (morton_codes[j]>>sft) & 0x07;
-      permutation_vector[BinSizes[ii]] = index[j];
-      sorted_morton_codes[BinSizes[ii]] = morton_codes[j];
-      BinSizes[ii]++;
+      permutation_vector[BinCursor[ii]] = index[j];
+      sorted_morton_codes[BinCursor[ii]] = morton_codes[j];
+      BinCursor[ii]++;
     }
-    
-
     
     //swap the index pointers  
     swap(&index, &permutation_vector);
 
     //swap the code pointers 
     swap_long(&morton_codes, &sorted_morton_codes);
-    
-    
-    
+
     /* Call the function recursively to split the lower levels */
-    offset = 0; 
-    
-    for(i=0; i<MAXBINS; i++){
-      
+    for(int i=0; i<MAXBINS; i++){
+      int offset = (i>0) ? BinSizes[i-1] : 0;
       int size = BinSizes[i] - offset;
       
       truncated_radix_sort(&morton_codes[offset], 
@@ -102,7 +93,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 			   size, 
 			   population_threshold,
 			   sft-3, lv+1);
-      offset += size;  
     }
     
       

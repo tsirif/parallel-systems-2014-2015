@@ -1,7 +1,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "utils.h"
-#include <math.h>
+#include "math.h"
 
 #define DIM 3
 
@@ -17,8 +17,7 @@ int check_index(unsigned int *index, int N){
 
   /* Check if all indexes are present in the input vector */
   int count = 0;
-  int i = 0;
-  for(i=0; i<N; i++){
+  for(int i=0; i<N; i++){
     count += (index[i] == i);
   }
 
@@ -29,17 +28,15 @@ int check_index(unsigned int *index, int N){
 
 
 int check_codes(float *X, unsigned long int *morton_codes, 
-		int *level_record, int N, int maxlev){
+		unsigned int *level_record, int N, int maxlev){
 
   unsigned long int mcode = 0;
 
 
   // count the number of leafs
-  int i = 0;
-
   int counter = 0;
   int clevel = 0; 
-  for(i=0; i<N; i++){
+  for(int i=0; i<N; i++){
     if(level_record[i]>0){
       mcode = morton_codes[i] >> (3*(maxlev - level_record[i]));
       clevel = level_record[i];

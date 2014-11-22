@@ -23,7 +23,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 			  unsigned long int *sorted_morton_codes, 
 			  unsigned int *permutation_vector,
 			  unsigned int *index,
-			  int *level_record,
+			  unsigned int *level_record,
 			  int N, 
 			  int population_threshold,
 			  int sft, int lv);
@@ -36,5 +36,5 @@ void data_rearrangement(float *Y, float *X, unsigned int *permutation_vector, in
 /* verification */
 int check_index(unsigned int *index, int N);
 int check_codes(float *X, unsigned long int *morton_codes, 
-		int *level_record, int N, int maxlev);
+		unsigned int *level_record, int N, int maxlev);
  

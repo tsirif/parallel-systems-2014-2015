@@ -1,7 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/time.h>
+#include "stdio.h"
+#include "stdlib.h"
+#include "sys/time.h"
 #include "utils.h"
+
+#ifdef CILK
+#include <cilk/cilk.h>
+#endif
 
 #define DIM 3
 
@@ -11,7 +15,13 @@ int main(int argc, char** argv){
   struct timeval startwtime, endwtime;
 
   if (argc != 6) { // Check if the command line arguments are correct 
-    printf("Usage: %s N dist pop rep P\n where\n N:number of points\n dist: distribution code (0-cube, 1-Plummer)\n pop: population threshold\n rep: repetitions\n L: maximum tree height.\n", argv[0]);
+    printf("Usage: %s N dist pop rep P\n"
+	   "where\n"
+	   "N    : number of points\n"
+	   "dist : distribution code (0-cube, 1-Plummer)\n"
+	   "pop  : population threshold\n"
+	   "rep  : repetitions\n"
+	   "L    : maximum tree height.\n", argv[0]);
     return (1);
   }
 
@@ -35,8 +45,11 @@ int main(int argc, char** argv){
   unsigned int *level_record = (unsigned int *) calloc(N,sizeof(unsigned int)); // record of the leaf of the tree and their level
 
   // initialize the index
-  int i = 0;
-  for(i=0; i<N; i++){
+#ifdef CILK
+  cilk_for(int i=0; i<N; i++){
+#else
+    for(int i=0; i<N; i++){
+#endif
     index[i] = i;
   }
 
@@ -45,31 +58,13 @@ int main(int argc, char** argv){
 
   /* Find the boundaries of the space */
   float max[DIM], min[DIM];
-  
-  
-  gettimeofday (&startwtime, NULL); 
   find_max(max, X, N);
-  gettimeofday (&endwtime, NULL);
-
-  double max_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-        
-  gettimeofday (&startwtime, NULL); 
   find_min(min, X, N);
-  gettimeofday (&endwtime, NULL);
-
-  double min_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-        
-  printf("Max time %f \n", max_time );
-  printf("Min time %f \n", min_time );
-
 
   int nbins = (1 << maxlev); // maximum number of boxes at the leaf level
 
-  int it = 0; 
   // Independent runs
-  for(it = 0; it<repeat; it++){
+  for(int it = 0; it<repeat; it++){
 
     gettimeofday (&startwtime, NULL); 
   
@@ -80,7 +75,7 @@ int main(int argc, char** argv){
     double hash_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     
-    printf("Time to compute the hash codes: %f\n", hash_time);
+    printf("Time to compute the hash codes            : %fs\n", hash_time);
 
 
     gettimeofday (&startwtime, NULL); 
@@ -94,7 +89,7 @@ int main(int argc, char** argv){
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
 
 
-    printf("Time to compute the morton encoding: %f\n", morton_encoding_time);
+    printf("Time to compute the morton encoding       : %fs\n", morton_encoding_time);
 
 
     gettimeofday (&startwtime, NULL); 
@@ -107,11 +102,10 @@ int main(int argc, char** argv){
 
     gettimeofday (&endwtime, NULL);
 
-
     double sort_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
 
-    printf("Time for the truncated radix sort: %f\n", sort_time);
+    printf("Time for the truncated radix sort         : %fs\n", sort_time);
 
     gettimeofday (&startwtime, NULL); 
 
@@ -125,7 +119,7 @@ int main(int argc, char** argv){
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     
 
-    printf("Time to rearrange the particles in memory: %f\n", rearrange_time);
+    printf("Time to rearrange the particles in memory : %fs\n", rearrange_time);
 
     /* The following code is for verification */ 
     // Check if every point is assigned to one leaf of the tree

@@ -1,6 +1,10 @@
 #include "stdio.h"
 #include "stdlib.h"
-#include <math.h>
+#include "math.h"
+
+#ifdef CILK
+#include <cilk/cilk.h>
+#endif
 
 #define DIM 3
 
@@ -14,21 +18,22 @@ inline unsigned long int splitBy3(unsigned int a){
     return x;
 }
 
-unsigned long int mortonEncode_magicbits(unsigned int x, unsigned int y, unsigned int z){
-    unsigned long int answer = 0;
-    answer |= splitBy3(x) | splitBy3(y) << 1 | splitBy3(z) << 2;
+inline unsigned long int mortonEncode_magicbits(unsigned int x, unsigned int y, unsigned int z){
+    unsigned long int answer;
+    answer = splitBy3(x) | splitBy3(y) << 1 | splitBy3(z) << 2;
     return answer;
 }
 
 /* The function that transform the morton codes into hash codes */ 
 void morton_encoding(unsigned long int *mcodes, unsigned int *codes, int N, int max_level){
   
-  int i = 0;
-  for(i=0; i<N; i++){
-    // codes[i*Dim] = codes X
-    // codes[i*Dim] = codes Y
-    // codes[i*Dim] = codes Z
-    mcodes[i] = mortonEncode_magicbits(codes[i*DIM], codes[i*DIM + 1], codes[i*DIM + 2]); // Compute the morton codes from the hash codes using the magicbits mεthod
+#ifdef CILK
+  cilk_for(int i=0; i<N; i++){
+#else
+  for(int i=0; i<N; i++){
+#endif
+    // Compute the morton codes from the hash codes using the magicbits mathod
+    mcodes[i] = mortonEncode_magicbits(codes[i*DIM], codes[i*DIM + 1], codes[i*DIM + 2]);
   }
   
 }

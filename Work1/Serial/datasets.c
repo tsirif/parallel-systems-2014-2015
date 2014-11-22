@@ -9,18 +9,19 @@ date: Oct 2014
 
 #include "stdio.h" 
 #include "stdlib.h"
-#include <math.h>
+#include "math.h"
+#include "sys/time.h"
+#include "time.h"
 
 #define DIM 3 // Dimension of the space 
 #define PI 3.1415927 
 
 
-
 void cube(float *X, int N){
 
-  int i, j;
-  for(i=0; i<N; i++){
-    for(j=0; j<DIM; j++){
+  srand(time(NULL));
+  for(int i=0; i<N; i++){
+    for(int j=0; j<DIM; j++){
       X[i*DIM + j] = (float)rand() / (float) RAND_MAX;
     }
   }
@@ -30,8 +31,8 @@ void cube(float *X, int N){
 void plummer(float *X, int N){
 
   srand(time(NULL));
-  int i = 0;
-  for(i=0; i<N; i++){
+ 
+  for(int i=0; i<N; i++){
     float X1 = (float)rand() / (float) RAND_MAX;;
     float X2 = (float)rand() / (float) RAND_MAX;;
     float X3 = (float)rand() / (float) RAND_MAX;;
