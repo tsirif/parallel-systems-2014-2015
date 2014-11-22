@@ -87,7 +87,7 @@ def compare_results(results):
 if __name__ == '__main__':
     args = sys.argv[1:]
     if not args:
-        args = ['1000000', '0', '20', '30', '10']
+        args = ['2000000', '0', '20', '50', '10']
     compile_and_run_methods(args)
     time_results, success_results = get_method_results()
     print time_results
