@@ -33,6 +33,33 @@ typedef struct
   
 }bin_data;
 
+// This struct contains all the necessary data so as to call the 
+// truncated radix sort recursively.
+typedef struct
+{
+  // The pointer to the array containing the morton codes.
+  unsigned long int *morton_codes;
+  // The pointer to the array containing the sorted morton codes.
+  unsigned long int *sorted_morton_codes;
+  // The permutation vector.
+  unsigned int *permutation_vector;
+  // The pointer to the array of the indices of the particles.
+  unsigned int *index;
+  // The array that records the level of every node.
+  int *level_record;
+  // The number of particles to be sorted.
+  int N;
+  // The population Threshold
+  int population_threshold;
+  // The shift to the morton code that will be applied to find
+  // the bin where the particle belongs.
+  int sft;
+  // The level of the node.
+  int lv;
+  }recursion_data;
+  
+
+
 // The function that is called by every thread to calculate the 
 // number of elements in each bin.
 void * calculate_bin_sizes(void *arg)
@@ -113,6 +140,11 @@ void parallel_scan_exclude(int* a, int n)
   }
 }
 
+
+void threaded_radix_sort(void *arg)
+{
+  }
+
 void truncated_radix_sort(unsigned long int *morton_codes,
     unsigned long int *sorted_morton_codes,
     unsigned int *permutation_vector,
@@ -122,10 +154,16 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     int population_threshold,
     int sft, int lv)
 {
-  level_record[0] = lv; // record the level of the node
+  
+  if(N<=0){
 
-  if (N <= population_threshold || sft < 0)
+    return;
+  }
+  
+  else if (N <= population_threshold || sft < 0)
   { 
+    // Record the level of the node.
+    level_record[0] = lv;
     // Base case. The node is a leaf
     // Copy the pernutation vector
     memcpy(permutation_vector, index, N*sizeof(unsigned int));
@@ -135,6 +173,8 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   }
   else
   {
+    // Record the level of the node.
+    level_record[0] = lv;
     int bin_offsets[MAXBINS] = {0};
     int bin_offsets_cnt[MAXBINS] = {0};
     int i = 0, j = 0;
@@ -263,7 +303,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
        *  parameters of the sorting function and the bin size and offset
        *  arrays.
       **/
-      #pragma omp parallel for private(i)
       for (i = 0; i < MAXBINS; ++i)
       {
         int offset = (i>0) ? bin_offsets[i-1] : 0;
