@@ -6,11 +6,12 @@
 
 typedef struct
 {
-  int tid;
   int N;
   unsigned long int* morton_codes;
   unsigned int* simple_codes;
 } Codes;
+
+Codes gcodes;
 
 inline unsigned long int splitBy3(unsigned int a)
 {
@@ -23,7 +24,8 @@ inline unsigned long int splitBy3(unsigned int a)
     return x;
 }
 
-inline unsigned long int mortonEncode_magicbits(unsigned int x, unsigned int y, unsigned int z)
+inline unsigned long int mortonEncode_magicbits(
+    unsigned int x, unsigned int y, unsigned int z)
 {
     unsigned long int answer = 0;
     answer |= splitBy3(x) | splitBy3(y) << 1 | splitBy3(z) << 2;
@@ -34,8 +36,12 @@ inline unsigned long int mortonEncode_magicbits(unsigned int x, unsigned int y, 
 void* calculate_morton_codes(void* arg)
 {
   int i;
-  Codes* codes = (Codes *) arg;
-  for (i = codes->tid ; i < codes->N; i += THREADS)
+  int tid = (long) arg;
+  Codes* codes = &gcodes;
+  int chunk = codes->N / THREADS;
+  int start = tid * chunk;
+  int end = tid == THREADS - 1 ? codes->N : (tid+1) * chunk;
+  for (i = start; i < end; ++i)
   {
     codes->morton_codes[i] = mortonEncode_magicbits(
         codes->simple_codes[i*DIM],
@@ -50,43 +56,52 @@ void morton_encoding(unsigned long int *morton_codes,
     unsigned int *simple_codes, int N, int max_level)
 {
   long i;
-  int rcode;
-  pthread_t threads[THREADS];
-  Codes codes[THREADS];
-  pthread_attr_t tattr;
-  void* status;
-
-  // Initialization of static codes [Codes] and tattr [pthread_attr_t]
-  pthread_attr_init(&tattr);
-  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_JOINABLE);
-
-  // Thread creation and job delegation
-  for (i = 0; i < THREADS; ++i)
+  if (N > THREADS*THREADS)
   {
-    codes[i].tid = i;
-    codes[i].N = N;
-    codes[i].morton_codes = morton_codes;
-    codes[i].simple_codes = simple_codes;
-    /*printf("Starting thread num #%ld\n", i);*/
-    rcode = pthread_create(&threads[i], &tattr,
-        calculate_morton_codes, (void*) &codes[i]);
-    if (rcode)
+    int rcode;
+    pthread_t threads[THREADS];
+    pthread_attr_t tattr;
+    void* status;
+
+    // Initialization of static codes [Codes] and tattr [pthread_attr_t]
+    gcodes.N = N;
+    gcodes.morton_codes = morton_codes;
+    gcodes.simple_codes = simple_codes;
+    pthread_attr_init(&tattr);
+    pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_JOINABLE);
+
+    // Thread creation and job delegation
+    for (i = 0; i < THREADS; ++i)
     {
-      printf("ERROR; return code from pthread_create() is %d\n", rcode);
-      exit(-1);
+      /*printf("Starting thread num #%ld\n", i);*/
+      rcode = pthread_create(&threads[i], &tattr,
+          calculate_morton_codes, (void*) i);
+      if (rcode)
+      {
+        printf("ERROR; return code from pthread_create() is %d\n", rcode);
+        exit(-1);
+      }
+    }
+
+    // Thread attribute destruction and thread meeting point
+    pthread_attr_destroy(&tattr);
+
+    for (i = 0; i < THREADS; ++i)
+    {
+      rcode = pthread_join(threads[i], &status);
+      if (rcode)
+      {
+        printf("ERROR; return code from pthread_join() is %d\n", rcode);
+        exit(-1);
+      }
     }
   }
-
-  // Thread attribute destruction and thread meeting point
-  pthread_attr_destroy(&tattr);
-
-  for (i = 0; i < THREADS; ++i)
+  else
   {
-    rcode = pthread_join(threads[i], &status);
-    if (rcode)
-    {
-      printf("ERROR; return code from pthread_join() is %d\n", rcode);
-      exit(-1);
-    }
+    for (i = 0; i < N; ++i)
+      morton_codes[i] = mortonEncode_magicbits(
+          simple_codes[i*DIM],
+          simple_codes[i*DIM + 1],
+          simple_codes[i*DIM + 2]);
   }
 }
