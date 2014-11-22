@@ -101,7 +101,7 @@ void data_rearrangement(float *Y, float *X,
   int threadFlag;
   
   
-  // Create the threads and perform the hash encoding.
+  // Create the threads and rearrange the data.
   for( threadIt = 0; threadIt < THREADS ; threadIt ++ )
   {
     // Create the threads.
@@ -117,7 +117,7 @@ void data_rearrangement(float *Y, float *X,
       exit(-1);
     }
     
-  } // End of thread Hashing
+  } // End of thread data rearrangement.
   
   pthread_attr_destroy(&attribute);
   

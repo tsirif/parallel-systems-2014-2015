@@ -169,16 +169,13 @@ void compute_hash_codes(unsigned int *codes, float *X, int N,
   float qstep;
 
   int i = 0;
-  //~ #pragma omp parallel shared(range  , max  , min   ) private(i)
-  //~ {
-    //~ #pragma omp for schedule( dynamic  ) nowait
-    for(i=0; i<DIM; i++)
-    {
-      range[i] = fabs(max[i] - min[i]); // The range of the data
-      range[i] += 0.01*range[i]; // Add somthing small to avoid having points exactly at the boundaries 
-    }
-  //~ }
-  
+
+  for(i=0; i<DIM; i++)
+  {
+    range[i] = fabs(max[i] - min[i]); // The range of the data
+    range[i] += 0.01*range[i]; // Add somthing small to avoid having points exactly at the boundaries 
+  }
+
   qstep = max_range(range) / nbins; // The quantization step 
   
   quantize(codes, X, min, qstep, N); // Function that does the quantization
