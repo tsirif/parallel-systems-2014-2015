@@ -3,7 +3,7 @@
 
 /** Helper header file used to include OpenMP library.  **/
 
-#include "pthread.h"
+#include <pthread.h>
 #define THREADS 8
 #define DIM 3
 
