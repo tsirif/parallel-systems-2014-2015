@@ -275,21 +275,22 @@ void *threaded_radix_sort(void *arg)
       
       // Pointer used to check if the threads where successfully joined.
       void *status; 
-    
+      
       
       // Join the threads.
       for( threadIt = 0 ; threadIt < THREADS ; threadIt++) 
       {
         // Join thread #threadIt .
         threadFlag = pthread_join( threads[threadIt], &status);
-        if (threadFlag ) 
+        if (threadFlag) 
         {
-          printf("ERROR; return code from pthread_join()" 
+          printf("ERROR joining after calculating bin sizes;"
+            " return code from pthread_join()" 
                 "is %d\n", threadFlag );
+          printf("The error is from thread %d at level %d \n",threadIt,lv);
           exit(-1);
         }
-        //~ printf("Main: completed join with thread %d having a status   "
-              //~ "of %ld\n" , threadIt , (long)status );
+
       } // End of Joining Threads.
 
       bin_offsets_cnt[0] = 0;
@@ -329,13 +330,13 @@ void *threaded_radix_sort(void *arg)
       // and perform them in parallel.
       pthread_t r_threads[MAXBINS];
       // Declare an attribute for the above threads.
-      //~ pthread_attr_t attribute;
+      pthread_attr_t attr;
       
       
       // Initialize the attribute so that the threads we create are 
       // joinable.
-      pthread_attr_init(&attribute);
-      pthread_attr_setdetachstate(&attribute, PTHREAD_CREATE_JOINABLE);
+      pthread_attr_init(&attr);
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
       
       
      recursion_data rData[MAXBINS];
@@ -363,7 +364,7 @@ void *threaded_radix_sort(void *arg)
       for( threadIt = 0; threadIt < MAXBINS ; threadIt ++ )
       {
         // Create the threads.
-        threadFlag = pthread_create( &r_threads[threadIt] , &attribute ,
+        threadFlag = pthread_create( &r_threads[threadIt] , &attr ,
           threaded_radix_sort , (void*) &rData[threadIt] );
         
         // Check if the thread was succesfully created.
@@ -377,7 +378,7 @@ void *threaded_radix_sort(void *arg)
         
       } // End of recursive radix sort.
       
-      pthread_attr_destroy(&attribute);
+      pthread_attr_destroy(&attr);
       
     
       
@@ -385,10 +386,11 @@ void *threaded_radix_sort(void *arg)
       for( threadIt = 0 ; threadIt < MAXBINS ; threadIt++) 
       {
         // Join thread #threadIt .
-        threadFlag = pthread_join( threads[threadIt], &status);
+        threadFlag = pthread_join( r_threads[threadIt], &status);
         if (threadFlag ) 
         {
-          printf("ERROR; return code from pthread_join()" 
+          printf("ERROR joining after recursion; "
+          "return code from pthread_join()" 
                 "is %d\n", threadFlag );
           exit(-1);
         }
@@ -622,13 +624,13 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       // and perform them in parallel.
       pthread_t r_threads[MAXBINS];
       // Declare an attribute for the above threads.
-      //~ pthread_attr_t attribute;
+      pthread_attr_t attr;
       
       
       // Initialize the attribute so that the threads we create are 
       // joinable.
-      pthread_attr_init(&attribute);
-      pthread_attr_setdetachstate(&attribute, PTHREAD_CREATE_JOINABLE);
+      pthread_attr_init(&attr);
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
       
       
      recursion_data rData[MAXBINS];
@@ -656,7 +658,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       for( threadIt = 0; threadIt < MAXBINS ; threadIt ++ )
       {
         // Create the threads.
-        threadFlag = pthread_create( &r_threads[threadIt] , &attribute ,
+        threadFlag = pthread_create( &r_threads[threadIt] , &attr ,
           threaded_radix_sort , (void*) &rData[threadIt] );
         
         // Check if the thread was succesfully created.
@@ -670,7 +672,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         
       } // End of recursive radix sort.
       
-      pthread_attr_destroy(&attribute);
+      pthread_attr_destroy(&attr);
       
     
       
@@ -678,7 +680,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       for( threadIt = 0 ; threadIt < MAXBINS ; threadIt++) 
       {
         // Join thread #threadIt .
-        threadFlag = pthread_join( threads[threadIt], &status);
+        threadFlag = pthread_join( r_threads[threadIt], &status);
         if (threadFlag ) 
         {
           printf("ERROR; return code from pthread_join()" 
