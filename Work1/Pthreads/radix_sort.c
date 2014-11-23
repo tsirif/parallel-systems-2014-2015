@@ -120,36 +120,6 @@ void swap(unsigned int **x, unsigned int **y)
   y[0] = tmp;
 }
 
-void parallel_scan_exclude(int* a, int n)
-{
-  if (n == 1)
-  {
-    a[0] = 0;
-    return;
-  }
-  int i;
-  int c[n/2];
-  for (i = 0; i < n/2; ++i)
-  {
-    c[i] = a[2*i] + a[2*i+1];
-  }
-  parallel_scan_exclude(c, n/2);
-  int b[n];
-  for (i = 0; i < n; ++i)
-  {
-    {
-      if (i%2 == 0)
-        b[i] = c[i/2];
-      else
-        b[i] = c[(i-1)/2] + a[i-1];
-    }
-  }
-  for (i = 0; i < n; ++i)
-  {
-    a[i] = b[i];
-  }
-}
-
 
 void *threaded_radix_sort(void *arg)
 {
@@ -203,7 +173,6 @@ void *threaded_radix_sort(void *arg)
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
     if (lv < MAXLEVEL)
-    //~ if ( N > MAXPARTICLES && lv < MAXLEVEL )
     {
       
       
@@ -294,7 +263,8 @@ void *threaded_radix_sort(void *arg)
         }
 
       } // End of Joining Threads.
-
+      
+      // Calculate where every bin starts.
       bin_offsets_cnt[0] = 0;
       for (i = 1; i < MAXBINS; ++i)
       {
@@ -344,7 +314,7 @@ void *threaded_radix_sort(void *arg)
      recursion_data rData[MAXBINS];
       
       // Assign the data that will be passed to each thread that will
-      // sort recursively every bin.
+      // be used to sort recursively every bin.
       for (i = 0 ; i < MAXBINS ; i++ )
       {
         int offset = (i>0) ? bin_offsets[i-1] : 0;
@@ -396,8 +366,6 @@ void *threaded_radix_sort(void *arg)
                 "is %d\n", threadFlag );
           exit(-1);
         }
-        //~ printf("Main: completed join with thread %d having a status   "
-              //~ "of %ld\n" , threadIt , (long)status );
       } // End of Joining Threads.
       
      
@@ -499,7 +467,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
     if (lv < MAXLEVEL)
-    //~ if ( N > MAXPARTICLES && lv < MAXLEVEL )
     {
       
       
@@ -586,8 +553,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
                 "is %d\n", threadFlag );
           exit(-1);
         }
-        //~ printf("Main: completed join with thread %d having a status   "
-              //~ "of %ld\n" , threadIt , (long)status );
       } // End of Joining Threads.
 
       bin_offsets_cnt[0] = 0;
@@ -690,8 +655,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
                 "is %d\n", threadFlag );
           exit(-1);
         }
-        //~ printf("Main: completed join with thread %d having a status   "
-              //~ "of %ld\n" , threadIt , (long)status );
+
       } // End of Joining Threads.
       
      
@@ -709,7 +673,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         bin_offsets[ii]++;
       }
 
-      // scan prefix (must change this code)  
       bin_offsets_cnt[0] = 0;
       for (i = 1; i < MAXBINS; ++i)
       {
