@@ -6,6 +6,15 @@
 #define MAXBINS 8
 #define MAXLEVEL 1
 
+void truncated_radix_sort(unsigned long int *morton_codes,
+    unsigned long int *sorted_morton_codes,
+    unsigned int *permutation_vector,
+    unsigned int *index,
+    int *level_record,
+    int N,
+    int population_threshold,
+    int sft, int lv);
+
 
 // The struct that contains the data that is passed to every thread
 // so as to calculate the number of elements in every bin.
@@ -141,43 +150,52 @@ void parallel_scan_exclude(int* a, int n)
 }
 
 
-void threaded_radix_sort(void *arg)
-{
-  }
-
-void truncated_radix_sort(unsigned long int *morton_codes,
-    unsigned long int *sorted_morton_codes,
-    unsigned int *permutation_vector,
-    unsigned int *index,
-    int *level_record,
-    int N,
-    int population_threshold,
-    int sft, int lv)
+void *threaded_radix_sort(void *arg)
 {
   
-  if(N<=0){
+  recursion_data *dataPtr = (recursion_data *)arg;
+  
+  if( dataPtr->N <= 0){
 
     return;
   }
-  
-  else if (N <= population_threshold || sft < 0)
+  // If we have reached the population threshold or there are not 
+  // enough bits of the code copy the data and return.
+  else if ( dataPtr->N <= dataPtr->population_threshold 
+    || dataPtr->sft < 0)
   { 
     // Record the level of the node.
-    level_record[0] = lv;
+    dataPtr->level_record[0] = dataPtr->lv;
     // Base case. The node is a leaf
     // Copy the pernutation vector
-    memcpy(permutation_vector, index, N*sizeof(unsigned int));
+    memcpy( dataPtr->permutation_vector , 
+      dataPtr->index, dataPtr->N*sizeof(unsigned int));
     // Copy the Morton codes 
-    memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int));
+    memcpy( dataPtr->sorted_morton_codes, 
+      dataPtr->morton_codes, dataPtr->N*sizeof(unsigned long int));
     return;
   }
   else
   {
+    // Assign the data that we have received as an argument.
+    unsigned long int *morton_codes = dataPtr->morton_codes;
+    unsigned long int *sorted_morton_codes = 
+      dataPtr->sorted_morton_codes;
+    unsigned int *permutation_vector = dataPtr->permutation_vector;
+    unsigned int *index = dataPtr->index;
+    int *level_record = dataPtr->level_record;
+    int N = dataPtr->N;
+    int population_threshold = dataPtr->population_threshold;
+    int sft = dataPtr->sft;
+    int lv = dataPtr->lv;
+    
+    
     // Record the level of the node.
     level_record[0] = lv;
     int bin_offsets[MAXBINS] = {0};
     int bin_offsets_cnt[MAXBINS] = {0};
     int i = 0, j = 0;
+    
     // If we are not deep enough in the recursive algorithm 
     // use the parallel MSB radix sort. 
     // This is done so as not to create a huge number of threads
@@ -281,7 +299,9 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         bin_offsets[i-1] = bin_offsets_cnt[i];
       }
       bin_offsets[MAXBINS-1] += bin_offsets[MAXBINS-2];
+      
 
+      
       // Find the bin in which each point belongs.
       for (j = 0; j < N; ++j)
       {
@@ -303,18 +323,377 @@ void truncated_radix_sort(unsigned long int *morton_codes,
        *  parameters of the sorting function and the bin size and offset
        *  arrays.
       **/
+      
+      // Initiliaze the static array containing 
+      // the threads that will be used to split the recursive calls
+      // and perform them in parallel.
+      pthread_t r_threads[MAXBINS];
+      // Declare an attribute for the above threads.
+      //~ pthread_attr_t attribute;
+      
+      
+      // Initialize the attribute so that the threads we create are 
+      // joinable.
+      pthread_attr_init(&attribute);
+      pthread_attr_setdetachstate(&attribute, PTHREAD_CREATE_JOINABLE);
+      
+      
+     recursion_data rData[MAXBINS];
+      
+      // Assign the data that will be passed to each thread that will
+      // sort recursively every bin.
+      for (i = 0 ; i < MAXBINS ; i++ )
+      {
+        int offset = (i>0) ? bin_offsets[i-1] : 0;
+        int size = bin_offsets[i] - offset;
+        rData[i].morton_codes = &morton_codes[offset];
+        rData[i].sorted_morton_codes = &sorted_morton_codes[offset];
+        rData[i].permutation_vector = &permutation_vector[offset];
+        rData[i].index = &index[offset];
+        rData[i].level_record = &level_record[offset];
+        rData[i].N = size;
+        rData[i].population_threshold = population_threshold;
+        rData[i].sft = sft - 3;
+        rData[i].lv = lv + 1;
+
+      }
+
+      
+      // Create the threads and recursively sort the array.
+      for( threadIt = 0; threadIt < MAXBINS ; threadIt ++ )
+      {
+        // Create the threads.
+        threadFlag = pthread_create( &r_threads[threadIt] , &attribute ,
+          threaded_radix_sort , (void*) &rData[threadIt] );
+        
+        // Check if the thread was succesfully created.
+        // If not terminate the iteration.
+        if (threadFlag )
+        {
+          printf("Thread %d could not be created. Error Code is %d \n",
+            threadIt , threadFlag );
+          exit(-1);
+        }
+        
+      } // End of recursive radix sort.
+      
+      pthread_attr_destroy(&attribute);
+      
+    
+      
+      // Join the threads.
+      for( threadIt = 0 ; threadIt < MAXBINS ; threadIt++) 
+      {
+        // Join thread #threadIt .
+        threadFlag = pthread_join( threads[threadIt], &status);
+        if (threadFlag ) 
+        {
+          printf("ERROR; return code from pthread_join()" 
+                "is %d\n", threadFlag );
+          exit(-1);
+        }
+        //~ printf("Main: completed join with thread %d having a status   "
+              //~ "of %ld\n" , threadIt , (long)status );
+      } // End of Joining Threads.
+      
+     
+      
+      
+
+    }  // should we run in parallel?
+    // If not execute the recursive call serially.
+    else
+    {
+      level_record[0] = lv;
+      for (j = 0; j < N; ++j)
+      {
+        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
+        bin_offsets[ii]++;
+      }
+
+      // scan prefix (must change this code)  
+      bin_offsets_cnt[0] = 0;
+      for (i = 1; i < MAXBINS; ++i)
+      {
+        bin_offsets_cnt[i] = bin_offsets_cnt[i-1] + bin_offsets[i-1];
+        bin_offsets[i-1] = bin_offsets_cnt[i];
+      }
+      bin_offsets[MAXBINS-1] += bin_offsets[MAXBINS-2];
+      
+      for (j = 0; j < N; ++j)
+      {
+        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
+        permutation_vector[bin_offsets_cnt[ii]] = index[j];
+        sorted_morton_codes[bin_offsets_cnt[ii]] = morton_codes[j];
+        bin_offsets_cnt[ii]++;
+      }
+      
+      //swap the index pointers  
+      swap(&index, &permutation_vector);
+
+      //swap the code pointers 
+      swap_long(&morton_codes, &sorted_morton_codes);
+
+      /* Call the function recursively to split the lower levels */
       for (i = 0; i < MAXBINS; ++i)
       {
         int offset = (i>0) ? bin_offsets[i-1] : 0;
         int size = bin_offsets[i] - offset;
-        truncated_radix_sort(&morton_codes[offset],
-            &sorted_morton_codes[offset],
-            &permutation_vector[offset],
-            &index[offset], &level_record[offset],
-            size,
-            population_threshold,
-            sft-3, lv+1);
-      } 
+        truncated_radix_sort(&morton_codes[offset], 
+             &sorted_morton_codes[offset], 
+             &permutation_vector[offset], 
+             &index[offset], &level_record[offset], 
+             size, 
+             population_threshold,
+             sft-3, lv+1);
+      }
+    }  // should we run in parallel?
+  }  // have we reached a leaf node?
+
+  
+} // End of pthread Radix Callback
+
+// Truncated Radix sort function.
+void truncated_radix_sort(unsigned long int *morton_codes,
+    unsigned long int *sorted_morton_codes,
+    unsigned int *permutation_vector,
+    unsigned int *index,
+    int *level_record,
+    int N,
+    int population_threshold,
+    int sft, int lv)
+{
+  
+  if(N<=0){
+
+    return;
+  }
+  
+  else if (N <= population_threshold || sft < 0)
+  { 
+    // Record the level of the node.
+    level_record[0] = lv;
+    // Base case. The node is a leaf
+    // Copy the pernutation vector
+    memcpy(permutation_vector, index, N*sizeof(unsigned int));
+    // Copy the Morton codes 
+    memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int));
+    return;
+  }
+  else
+  {
+    // Record the level of the node.
+    level_record[0] = lv;
+    int bin_offsets[MAXBINS] = {0};
+    int bin_offsets_cnt[MAXBINS] = {0};
+    int i = 0, j = 0;
+    
+    
+    // If we are not deep enough in the recursive algorithm 
+    // use the parallel MSB radix sort. 
+    // This is done so as not to create a huge number of threads
+    // in the deeper levels where the cost of creating them will
+    // be greater than the time we save by parallelizing the code.
+    if (lv < MAXLEVEL)
+    {
+      
+      
+      // Initiliaze the static array containing 
+      // the identities of threads.
+      pthread_t threads[THREADS];
+      // Declare an attribute for the above threads.
+      pthread_attr_t attribute;
+      
+      // Declare the spin lock and initialize it.
+      pthread_spinlock_t lock ;
+      
+      pthread_spin_init(&lock,PTHREAD_PROCESS_PRIVATE);
+      
+      // Initialize the attribute so that the threads we create are 
+      // joinable.
+      pthread_attr_init(&attribute);
+      pthread_attr_setdetachstate(&attribute, PTHREAD_CREATE_JOINABLE);
+      
+      // Split the data into even chunks for every thread.
+      int chunk = N  /  THREADS  ;
+        
+      // Iteration indices.
+      int i = 0, j = 0; 
+      
+      
+      // Static array containing the data 
+      bin_data thread_data[THREADS];
+      
+      // Initialize the data that will be passed to every thread.
+      for ( i = 0 ; i < THREADS ; i++)
+      {
+        thread_data[i].threadID = i ;
+        thread_data[i].morton_codes = morton_codes ;
+        thread_data[i].sft = &sft ;
+        thread_data[i].bin_sizes = &bin_offsets[0] ;
+        thread_data[i].lock = &lock;
+        thread_data[i].start = i*chunk ;
+        thread_data[i].end = (i+1)*chunk ;
+        if (i==THREADS-1)
+          thread_data[i].end = N ;
+          
+      }
+      
+      // The index that iterates over the threads
+      int threadIt ;
+      // The flag that checks for errors during the creation of the 
+      // threads.
+      int threadFlag;
+      
+      
+      // Create the threads and calculate the bin sizes.
+      for( threadIt = 0; threadIt < THREADS ; threadIt ++ )
+      {
+        // Create the threads.
+        threadFlag = pthread_create( &threads[threadIt] , &attribute ,
+          calculate_bin_sizes , (void*) &thread_data[threadIt] );
+        
+        // Check if the thread was succesfully created.
+        // If not terminate the iteration.
+        if (threadFlag )
+        {
+          printf("Thread %d could not be created. Error Code is %d \n",
+            threadIt , threadFlag );
+          exit(-1);
+        }
+        
+      } // End of bin size calculation using threads.
+      
+      pthread_attr_destroy(&attribute);
+      
+      // Pointer used to check if the threads where successfully joined.
+      void *status; 
+    
+      
+      // Join the threads.
+      for( threadIt = 0 ; threadIt < THREADS ; threadIt++) 
+      {
+        // Join thread #threadIt .
+        threadFlag = pthread_join( threads[threadIt], &status);
+        if (threadFlag ) 
+        {
+          printf("ERROR; return code from pthread_join()" 
+                "is %d\n", threadFlag );
+          exit(-1);
+        }
+        //~ printf("Main: completed join with thread %d having a status   "
+              //~ "of %ld\n" , threadIt , (long)status );
+      } // End of Joining Threads.
+
+      bin_offsets_cnt[0] = 0;
+      for (i = 1; i < MAXBINS; ++i)
+      {
+        bin_offsets_cnt[i] = bin_offsets_cnt[i-1] + bin_offsets[i-1];
+        bin_offsets[i-1] = bin_offsets_cnt[i];
+      }
+      bin_offsets[MAXBINS-1] += bin_offsets[MAXBINS-2];
+      
+
+      
+      // Find the bin in which each point belongs.
+      for (j = 0; j < N; ++j)
+      {
+        unsigned int ii = (morton_codes[j]>>sft) & 0x07;
+        permutation_vector[bin_offsets_cnt[ii]] = index[j];
+        sorted_morton_codes[bin_offsets_cnt[ii]] = morton_codes[j];
+        bin_offsets_cnt[ii]++;
+      }
+     
+      //swap the index pointers  
+      swap(&index, &permutation_vector);
+      //swap the code pointers 
+      swap_long(&morton_codes, &sorted_morton_codes);
+
+      /** 
+       * Define a parallel region where we will loop over all the bins
+       * and recursively call the radix sort function on each one.
+       * Shared Attributes : The input and output arrays , the
+       *  parameters of the sorting function and the bin size and offset
+       *  arrays.
+      **/
+      
+      // Initiliaze the static array containing 
+      // the threads that will be used to split the recursive calls
+      // and perform them in parallel.
+      pthread_t r_threads[MAXBINS];
+      // Declare an attribute for the above threads.
+      //~ pthread_attr_t attribute;
+      
+      
+      // Initialize the attribute so that the threads we create are 
+      // joinable.
+      pthread_attr_init(&attribute);
+      pthread_attr_setdetachstate(&attribute, PTHREAD_CREATE_JOINABLE);
+      
+      
+     recursion_data rData[MAXBINS];
+      
+      // Assign the data that will be passed to each thread that will
+      // sort recursively every bin.
+      for (i = 0 ; i < MAXBINS ; i++ )
+      {
+        int offset = (i>0) ? bin_offsets[i-1] : 0;
+        int size = bin_offsets[i] - offset;
+        rData[i].morton_codes = &morton_codes[offset];
+        rData[i].sorted_morton_codes = &sorted_morton_codes[offset];
+        rData[i].permutation_vector = &permutation_vector[offset];
+        rData[i].index = &index[offset];
+        rData[i].level_record = &level_record[offset];
+        rData[i].N = size;
+        rData[i].population_threshold = population_threshold;
+        rData[i].sft = sft - 3;
+        rData[i].lv = lv + 1;
+
+      }
+
+      
+      // Create the threads and recursively sort the array.
+      for( threadIt = 0; threadIt < MAXBINS ; threadIt ++ )
+      {
+        // Create the threads.
+        threadFlag = pthread_create( &r_threads[threadIt] , &attribute ,
+          threaded_radix_sort , (void*) &rData[threadIt] );
+        
+        // Check if the thread was succesfully created.
+        // If not terminate the iteration.
+        if (threadFlag )
+        {
+          printf("Thread %d could not be created. Error Code is %d \n",
+            threadIt , threadFlag );
+          exit(-1);
+        }
+        
+      } // End of recursive radix sort.
+      
+      pthread_attr_destroy(&attribute);
+      
+    
+      
+      // Join the threads.
+      for( threadIt = 0 ; threadIt < MAXBINS ; threadIt++) 
+      {
+        // Join thread #threadIt .
+        threadFlag = pthread_join( threads[threadIt], &status);
+        if (threadFlag ) 
+        {
+          printf("ERROR; return code from pthread_join()" 
+                "is %d\n", threadFlag );
+          exit(-1);
+        }
+        //~ printf("Main: completed join with thread %d having a status   "
+              //~ "of %ld\n" , threadIt , (long)status );
+      } // End of Joining Threads.
+      
+     
+      
+      //~ exit(-1);
+      
+
     }  // should we run in parallel?
     // If not execute the recursive call serially.
     else
@@ -363,4 +742,5 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       }
     }  // should we run in parallel?
   }  // have we reached a leaf node?
-}
+  
+} // End of Radix Sort
