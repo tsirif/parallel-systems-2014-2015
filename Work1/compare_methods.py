@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import sys
 import subprocess32
 
 from collections import defaultdict
@@ -8,62 +7,77 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-METHODS = ['OpenMP', 'Serial','Pthreads']
+METHODS = ['Serial', 'OpenMP', 'Pthreads']
 LIBRARIES = ['hash', 'morton', 'radix', 'rearrange']
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 
 
-def compile_and_run_methods(args):
+def compile_methods():
     for method in METHODS:
         subprocess32.check_call(["make", "-C", "./"+method])
-        arguments = list(args)
-        arguments.insert(0, "./" + method + "/test_octree.out")
-        s = subprocess32.check_output(arguments)
-        with open("./" + method + "/results.txt", 'w') as f:
-            f.write(s)
+
+
+def run(args, method):
+    arguments = list(args)
+    arguments.insert(0, "./" + method + "/test_octree.out")
+    s = subprocess32.check_output(arguments)
+    with open("./" + method + "/results.txt", 'w') as f:
+        f.write(s)
+
+
+def run_methods(args):
+    for method in METHODS:
+        run(args, method)
+
+
+def get_results(method):
+    success = True
+    counter = defaultdict(int)
+    mean_duration = defaultdict(float)
+    with open("./" + method + "/results.txt", 'r') as f:
+        for line in f:
+            for library in LIBRARIES:
+                if library in line:
+                    counter[library] += 1
+                    duration = float(line.split()[-1])
+                    mean_duration[library] += duration
+            if "Index" in line:
+                if line.split()[-1] != 'PASS':
+                    success = False
+            if "Encoding" in line:
+                if line.split()[-1] != 'PASS':
+                    success = False
+    for library in LIBRARIES:
+        mean_duration[library] /= counter[library]
+    return mean_duration, success
 
 
 def get_method_results():
     time_results = defaultdict(defaultdict)
     success_results = defaultdict(bool)
     for method in METHODS:
-        success_results[method] = True
-        counter = defaultdict(int)
-        mean_duration = defaultdict(float)
-        with open("./" + method + "/results.txt", 'r') as f:
-            for line in f:
-                for library in LIBRARIES:
-                    if library in line:
-                        counter[library] += 1
-                        duration = float(line.split()[-1])
-                        mean_duration[library] += duration
-                if "Index" in line:
-                    if line.split()[-1] != 'PASS':
-                        success_results[method] = False
-                if "Encoding" in line:
-                    if line.split()[-1] != 'PASS':
-                        success_results[method] = False
-        for library in LIBRARIES:
-            mean_duration[library] /= counter[library]
+        mean_duration, success = get_results(method)
         time_results[method] = mean_duration
+        success_results[method] = success
     return time_results, success_results
 
 
-def compare_results(results):
-    N = len(LIBRARIES)
-    ind = np.arange(N)
+def compare_results(N, P, L, results):
+    lenL = len(LIBRARIES)
+    lenM = len(METHODS)
     width = 0.35
+    ind = np.arange(0, (lenL)*(lenM+1)*width, (lenM+1)*width)
 
     fig, ax = plt.subplots()
     method_rects = []
-    for i in range(len(METHODS)):
+    for i in range(lenM):
         values = np.array(results[METHODS[i]].values())
         method_rects.append(ax.bar(ind+i*width, values*1000,
                                    width, color=COLORS[i]))
 
     ax.set_ylabel('Duration (ms)')
-    ax.set_title('Duration by library and method')
-    ax.set_xticks(ind+width)
+    ax.set_title('Duration: N='+N+' P='+P+' L='+L)
+    ax.set_xticks(ind+lenM*width/2)
     ax.set_xticklabels(results[METHODS[0]].keys())
 
     def f(x):
@@ -82,15 +96,76 @@ def compare_results(results):
     for rects in method_rects:
         autolabel(rects)
 
-    plt.show()
+    # plt.show()
+    plt.savefig('compare-'+N+'-'+P+'-'+L+'.png',
+                bbox_inches='tight')
 
-if __name__ == '__main__':
-    args = sys.argv[1:]
-    if not args:
-        args = ['2000000', '0', '20', '50', '10']
-    compile_and_run_methods(args)
-    time_results, success_results = get_method_results()
-    print time_results
-    for method, success in success_results.items():
-        print method + " implementation was successful: " + str(success)
-    compare_results(time_results)
+
+def compare_methods():
+    args_list = [[str(i), '0', str(j), '5', str(k)]
+                 for i in range(500000, 2500000, 500000)
+                 for j in range(68, 138, 30)
+                 for k in range(10, 25, 5)]
+    compile_methods()
+    for args in args_list:
+        run_methods(args)
+        time_results, success_results = get_method_results()
+        for method, success in success_results.items():
+            print method + " implementation was successful: " + str(success)
+        compare_results(args[0], args[2], args[4], time_results)
+
+
+class GraphMaker(object):
+    def __init__(self, xdata, title, serial_performance, method, graph_type):
+        self.xdata = xdata
+        self.ydata = defaultdict(list)
+
+        fig, ax = plt.subplots(sharex=True, sharey=True)
+        self.fig = fig
+        self.ax = ax
+
+        self.ax.set_title(title)
+        self.ax.set_ylabel('Performance over Serial')
+
+        self.serial = serial_performance
+        self.method = method
+        self.graph_type = graph_type
+
+    def addy(self, means):
+        for library in LIBRARIES:
+            l = len(self.ydata[library])
+            self.ydata[library].append(
+                1000*means[library]/self.serial[l][library])
+
+    def plot(self):
+        for library in LIBRARIES:
+            self.ax.plot(self.xdata, self.ydata[library])
+
+        plt.savefig(self.method+'_'+self.graph_type+'.png',
+                    bbox_inches='tight')
+
+
+def make_perfomance_graph():
+    xdata = np.arange(1000000, 3000000, 50000)
+    args_list = [[str(i), '0', '98', '5', '15']
+                 for i in xdata]
+    compile_methods()
+    serial_performance = list()
+    for args in args_list:
+        run(args, METHODS[0])
+        mean_duration, success = get_results(METHODS[0])
+        serial_performance.append(mean_duration)
+    for method in METHODS[1:]:
+        title = method+' perfomance by N (P=98,L=15,cube)'
+        graphMaker = GraphMaker(xdata, title, serial_performance, method, 'N')
+        for args in args_list:
+            run(args, method)
+            mean_duration, success = get_results(method)
+            graphMaker.addy(mean_duration)
+        graphMaker.plot()
+
+if __name__ == "__main__":
+
+    make_perfomance_graph()
+
+    # compare_methods()
