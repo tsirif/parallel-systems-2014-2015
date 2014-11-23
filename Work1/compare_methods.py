@@ -62,7 +62,7 @@ def get_method_results():
     return time_results, success_results
 
 
-def compare_results(N, P, L, results):
+def compare_results(N, P, L, results, show=False):
     lenL = len(LIBRARIES)
     lenM = len(METHODS)
     width = 0.35
@@ -96,9 +96,11 @@ def compare_results(N, P, L, results):
     for rects in method_rects:
         autolabel(rects)
 
-    # plt.show()
-    plt.savefig('compare-'+N+'-'+P+'-'+L+'.png',
-                bbox_inches='tight')
+    if show:
+        plt.show()
+    else:
+        plt.savefig('compare-'+N+'-'+P+'-'+L+'.png',
+                    bbox_inches='tight')
 
 
 def compare_methods():
@@ -225,5 +227,20 @@ def show_perfomance():
 
 if __name__ == "__main__":
 
-    show_perfomance()
-    compare_methods()
+    import sys
+    argv = sys.argv[1:]
+    if len(argv) == 1:
+        if argv[1] == '-g':
+            show_perfomance()
+            compare_methods()
+    else:
+        if len(argv) == 5:
+            args = argv
+        else:
+            args = ['2500000', '0', '98', '5', '10']
+        compile_methods()
+        run_methods(args)
+        time_results, success_results = get_method_results()
+        for method, success in success_results.items():
+            print method + " implementation was successful: " + str(success)
+        compare_results(args[0], args[2], args[4], time_results, show=True)
