@@ -38,3 +38,6 @@
 # Python
 *.pyc
 .ropeproject/
+
+# Images
+*.png
