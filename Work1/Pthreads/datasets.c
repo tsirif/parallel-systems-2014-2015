@@ -32,9 +32,9 @@ void plummer(float *X, int N){
   srand(time(NULL));
   int i = 0;
   for(i=0; i<N; i++){
-    float X1 = (float)rand() / (float) RAND_MAX;;
-    float X2 = (float)rand() / (float) RAND_MAX;;
-    float X3 = (float)rand() / (float) RAND_MAX;;
+    float X1 = (float)drand48() / (float) RAND_MAX;;
+    float X2 = (float)drand48() / (float) RAND_MAX;;
+    float X3 = (float)drand48() / (float) RAND_MAX;;
     float R =  1.0 / sqrt( (pow(X1, -2.0 / 3.0) - 1.0) );
     if(R<100.0){
       float x1 = (1.0 - 2.0 * X2) * R;
