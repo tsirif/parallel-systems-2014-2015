@@ -5,6 +5,7 @@
 
 #define MAXBINS 8
 #define MAXLEVEL 1
+#define MAXPARTICLES 10000
 
 void truncated_radix_sort(unsigned long int *morton_codes,
     unsigned long int *sorted_morton_codes,
@@ -202,6 +203,7 @@ void *threaded_radix_sort(void *arg)
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
     if (lv < MAXLEVEL)
+    //~ if ( N > MAXPARTICLES && lv < MAXLEVEL )
     {
       
       
@@ -497,6 +499,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
     if (lv < MAXLEVEL)
+    //~ if ( N > MAXPARTICLES && lv < MAXLEVEL )
     {
       
       
