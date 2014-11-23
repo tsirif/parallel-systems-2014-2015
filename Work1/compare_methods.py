@@ -138,14 +138,12 @@ class GraphMaker(object):
                 means[library]/self.serial[l][library])
 
     def plot(self):
-        painters = []
         for library in LIBRARIES:
-            pl = self.ax.plot(self.xdata, self.ydata[library])
-            painters.append(pl)
+            self.ax.plot(self.xdata, self.ydata[library], label=library)
 
-        self.ax.legend(painters, LIBRARIES)
+        self.ax.legend()
 
-        plt.savefig(self.method+'_'+self.graph_type+'.png',
+        plt.savefig('graph_'+self.method+'_'+self.graph_type+'.png',
                     bbox_inches='tight')
 
 
@@ -153,6 +151,7 @@ def make_graph(title_method, graph_type, xdata, args_list):
     compile_methods()
     serial_performance = list()
     for args in args_list:
+        print '.',
         run(args, 'Serial')
         mean_duration, success = get_results('Serial')
         serial_performance.append(mean_duration)
@@ -161,6 +160,7 @@ def make_graph(title_method, graph_type, xdata, args_list):
         graphMaker = GraphMaker(xdata, title, serial_performance,
                                 method, graph_type)
         for args in args_list:
+            print '.',
             run(args, method)
             mean_duration, success = get_results(method)
             graphMaker.addy(mean_duration)
@@ -173,46 +173,57 @@ def show_perfomance():
                  for i in xdata]
     title_method = ' perfomance by N (P=98,L=15,cube)'
     graph_type = 'N_cube'
+    print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
 
     xdata = np.arange(68, 128, 1)
     args_list = [['2500000', '0', str(i), '5', '15']
                  for i in xdata]
     title_method = ' perfomance by P (N=2500000,L=15,cube)'
     graph_type = 'P_cube'
+    print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
 
     xdata = np.arange(10, 25, 1)
     args_list = [['2500000', '0', '98', '5', str(i)]
                  for i in xdata]
     title_method = ' perfomance by L (N=2500000,P=98,cube)'
     graph_type = 'L_cube'
+    print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
 
     xdata = np.arange(1000000, 5000000, 50000)
     args_list = [[str(i), '1', '98', '5', '15']
                  for i in xdata]
     title_method = ' perfomance by N (P=98,L=15,cube)'
     graph_type = 'N_plummer'
+    print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
 
     xdata = np.arange(68, 128, 1)
     args_list = [['2500000', '1', str(i), '5', '15']
                  for i in xdata]
     title_method = ' perfomance by P (N=2500000,L=15,cube)'
     graph_type = 'P_plummer'
+    print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
 
     xdata = np.arange(10, 25, 1)
     args_list = [['2500000', '1', '98', '5', str(i)]
                  for i in xdata]
     title_method = ' perfomance by L (N=2500000,P=98,cube)'
     graph_type = 'L_plummer'
+    print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
 
 
 if __name__ == "__main__":
 
     show_perfomance()
-
-    # compare_methods()
+    compare_methods()
