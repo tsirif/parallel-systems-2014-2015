@@ -230,7 +230,7 @@ if __name__ == "__main__":
     import sys
     argv = sys.argv[1:]
     if len(argv) == 1:
-        if argv[1] == '-g':
+        if argv[0] == '-g':
             show_perfomance()
             compare_methods()
     else:
