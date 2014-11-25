@@ -146,10 +146,12 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     int sft, int lv)
 {
   static int Max_Recursion_level;
-  
+  // If we start sorting the data assign the maximum number of 
+  // parallel recursions that will be made.
   if (lv==0)
   {
     Max_Recursion_level = ((int)log2f(sft/3 + 1) ) - 1  ;
+    printf("%d \n",Max_Recursion_level);
   }
   
   if(N<=0){
