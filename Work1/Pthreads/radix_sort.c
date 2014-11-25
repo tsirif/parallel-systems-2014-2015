@@ -4,7 +4,6 @@
 #include "lib.h"
 
 #define MAXBINS 8
-#define MAXLEVEL 1
 #define MAXPARTICLES 50000
 
 void truncated_radix_sort(unsigned long int *morton_codes,
@@ -125,6 +124,7 @@ void *threaded_radix_sort(void *arg)
 {
   
   recursion_data *dataPtr = (recursion_data *)arg;
+  
   truncated_radix_sort(dataPtr->morton_codes,
     dataPtr->sorted_morton_codes,
     dataPtr->permutation_vector,
@@ -133,6 +133,7 @@ void *threaded_radix_sort(void *arg)
     dataPtr->N,
     dataPtr->population_threshold,
     dataPtr->sft,dataPtr->lv);
+    
 } // End of pthread Radix Callback
 
 // Truncated Radix sort function.
@@ -183,7 +184,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     // This is done so as not to create a huge number of threads
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
-    //~ if (lv < MAXLEVEL)
     if ( N > MAXPARTICLES && lv < Max_Recursion_level )
     {
       
