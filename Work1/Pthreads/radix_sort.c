@@ -4,8 +4,8 @@
 #include "lib.h"
 
 #define MAXBINS 8
-#define MAXLEVEL 3
-#define MAXPARTICLES 10000
+#define MAXLEVEL 1
+#define MAXPARTICLES 50000
 
 void truncated_radix_sort(unsigned long int *morton_codes,
     unsigned long int *sorted_morton_codes,
@@ -145,6 +145,12 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     int population_threshold,
     int sft, int lv)
 {
+  static int Max_Recursion_level;
+  
+  if (lv==0)
+  {
+    Max_Recursion_level = ((int)log2f(sft/3 + 1) ) - 1  ;
+  }
   
   if(N<=0){
 
@@ -176,7 +182,8 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     // This is done so as not to create a huge number of threads
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
-    if (lv < MAXLEVEL)
+    //~ if (lv < MAXLEVEL)
+    if ( N > MAXPARTICLES && lv < Max_Recursion_level )
     {
       
       
