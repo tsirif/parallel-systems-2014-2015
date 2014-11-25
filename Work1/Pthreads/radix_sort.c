@@ -151,7 +151,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   if (lv==0)
   {
     Max_Recursion_level = ((int)log2f(sft/3 + 1) ) - 1  ;
-    printf("%d \n",Max_Recursion_level);
   }
   
   if(N<=0){
