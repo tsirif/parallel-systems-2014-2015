@@ -2,6 +2,10 @@
 #include "stdlib.h"
 #include <string.h>
 
+#ifdef CILK
+#include <cilk/cilk.h>
+#endif
+
 #define MAXBINS 8
 
 
@@ -52,23 +56,24 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   }
   else{
 
+    int i, j;
     level_record[0] = lv;
     // Find which child each point belongs to 
-    for(int j=0; j<N; j++){
+    for(j=0; j<N; j++){
       unsigned int ii = (morton_codes[j]>>sft) & 0x07;
       BinSizes[ii]++;
     }
 
     // scan prefix (must change this code)  
     int offset = 0;
-    for(int i=0; i<MAXBINS; i++){
+    for(i=0; i<MAXBINS; i++){
       int ss = BinSizes[i];
       BinCursor[i] = offset;
       offset += ss;
       BinSizes[i] = offset;
     }
     
-    for(int j=0; j<N; j++){
+    for(j=0; j<N; j++){
       unsigned int ii = (morton_codes[j]>>sft) & 0x07;
       permutation_vector[BinCursor[ii]] = index[j];
       sorted_morton_codes[BinCursor[ii]] = morton_codes[j];
@@ -82,7 +87,11 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     swap_long(&morton_codes, &sorted_morton_codes);
 
     /* Call the function recursively to split the lower levels */
-    for(int i=0; i<MAXBINS; i++){
+#ifdef CILK
+  cilk_for(i=0; i<MAXBINS; i++){
+#else
+  for(i=0; i<MAXBINS; i++){
+#endif
       int offset = (i>0) ? BinSizes[i-1] : 0;
       int size = BinSizes[i] - offset;
       
@@ -94,8 +103,6 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 			   population_threshold,
 			   sft-3, lv+1);
     }
-    
-      
   } 
 }
 

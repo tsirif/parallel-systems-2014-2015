@@ -40,7 +40,7 @@ typedef struct
   // when calculating the total bin sizes.
   pthread_spinlock_t *lock;
   
-}bin_data;
+} bin_data;
 
 // This struct contains all the necessary data so as to call the 
 // truncated radix sort recursively.
@@ -65,7 +65,7 @@ typedef struct
   int sft;
   // The level of the node.
   int lv;
-  }recursion_data;
+} recursion_data;
   
 
 

@@ -2,14 +2,24 @@
 #include <stdlib.h>
 #include <float.h>
 
+#ifdef CILK
+#include <cilk/cilk.h>
+#endif
+
 #define DIM 3
 
 void find_max(float *max_out,float *X, int N){
 
 
-  for(int i=0; i<DIM; i++){
+  int i;
+  for(i=0; i<DIM; i++){
     max_out[i] = -FLT_MAX;
-    for(int j=0; j<N; j++){
+    int j;
+#ifdef CILK
+    cilk_for(j=0; j<N; j++)
+#else
+    for(j=0; j<N; j++){
+#endif
       if(max_out[i]<X[j*DIM + i]){
 	max_out[i] = X[j*DIM + i];
       }
@@ -20,9 +30,15 @@ void find_max(float *max_out,float *X, int N){
 
 void find_min(float *min_out, float *X, int N){
 
-  for(int i=0; i<DIM; i++){ 
+  int i;
+  for(i=0; i<DIM; i++){ 
     min_out[i] = FLT_MAX;
-    for(int j=0; j<N; j++){
+    int j;
+#ifdef CILK
+    cilk_for(j=0; j<N; j++)
+#else
+    for(j=0; j<N; j++){
+#endif
       if(min_out[i]>X[j*DIM + i]){
 	min_out[i] = X[j*DIM + i];
       }

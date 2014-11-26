@@ -45,10 +45,11 @@ int main(int argc, char** argv){
   unsigned int *level_record = (unsigned int *) calloc(N,sizeof(unsigned int)); // record of the leaf of the tree and their level
 
   // initialize the index
+  int i;
 #ifdef CILK
-  cilk_for(int i=0; i<N; i++){
+  cilk_for(i=0; i<N; i++){
 #else
-    for(int i=0; i<N; i++){
+  for(i=0; i<N; i++){
 #endif
     index[i] = i;
   }
@@ -64,7 +65,8 @@ int main(int argc, char** argv){
   int nbins = (1 << maxlev); // maximum number of boxes at the leaf level
 
   // Independent runs
-  for(int it = 0; it<repeat; it++){
+  int it;
+  for(it = 0; it<repeat; it++){
 
     gettimeofday (&startwtime, NULL); 
   
@@ -75,7 +77,7 @@ int main(int argc, char** argv){
     double hash_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     
-    printf("Time to compute the hash codes (in sec)           : %f\n", hash_time);
+    printf("Time to compute the hash codes            : %f\n", hash_time);
 
 
     gettimeofday (&startwtime, NULL); 
@@ -89,7 +91,7 @@ int main(int argc, char** argv){
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
 
 
-    printf("Time to compute the morton encoding (in sec)      : %f\n", morton_encoding_time);
+    printf("Time to compute the morton encoding       : %f\n", morton_encoding_time);
 
 
     gettimeofday (&startwtime, NULL); 
@@ -105,7 +107,7 @@ int main(int argc, char** argv){
     double sort_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
 
-    printf("Time for the truncated radix sort (in sec)        : %f\n", sort_time);
+    printf("Time for the truncated radix sort         : %f\n", sort_time);
 
     gettimeofday (&startwtime, NULL); 
 
@@ -119,7 +121,7 @@ int main(int argc, char** argv){
 				/1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     
 
-    printf("Time to rearrange the particles in memory (in sec): %f\n", rearrange_time);
+    printf("Time to rearrange the particles in memory : %f\n", rearrange_time);
 
     /* The following code is for verification */ 
     // Check if every point is assigned to one leaf of the tree
@@ -155,8 +157,3 @@ int main(int argc, char** argv){
   free(index);
   free(level_record);
 }
-
-
-
-
-

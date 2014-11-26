@@ -13,6 +13,10 @@ date: Oct 2014
 #include "sys/time.h"
 #include "time.h"
 
+#ifdef CILK
+#include <cilk/cilk.h>
+#endif
+
 #define DIM 3 // Dimension of the space 
 #define PI 3.1415927 
 
@@ -20,8 +24,14 @@ date: Oct 2014
 void cube(float *X, int N){
 
   srand(time(NULL));
-  for(int i=0; i<N; i++){
-    for(int j=0; j<DIM; j++){
+  int i;
+#ifdef CILK
+  cilk_for(i=0; i<N; i++){
+#else
+  for(i=0; i<N; i++){
+#endif
+    int j;
+    for(j=0; j<DIM; j++){
       X[i*DIM + j] = (float)rand() / (float) RAND_MAX;
     }
   }
@@ -32,7 +42,12 @@ void plummer(float *X, int N){
 
   srand(time(NULL));
  
-  for(int i=0; i<N; i++){
+  int i;
+#ifdef CILK
+  cilk_for(i=0; i<N; i++){
+#else
+  for(i=0; i<N; i++){
+#endif
     float X1 = (float)rand() / (float) RAND_MAX;;
     float X2 = (float)rand() / (float) RAND_MAX;;
     float X3 = (float)rand() / (float) RAND_MAX;;

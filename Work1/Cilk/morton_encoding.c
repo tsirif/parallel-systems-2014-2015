@@ -2,8 +2,6 @@
 #include "stdlib.h"
 #include "math.h"
 
-#define CILK
-
 #ifdef CILK
 #include <cilk/cilk.h>
 #endif
@@ -29,10 +27,11 @@ inline unsigned long int mortonEncode_magicbits(unsigned int x, unsigned int y, 
 /* The function that transform the morton codes into hash codes */ 
 void morton_encoding(unsigned long int *mcodes, unsigned int *codes, int N, int max_level){
   
+  int i;
 #ifdef CILK
-  cilk_for(int i=0; i<N; i++){
+  cilk_for(i=0; i<N; i++){
 #else
-  for(int i=0; i<N; i++){
+  for(i=0; i<N; i++){
 #endif
     // Compute the morton codes from the hash codes using the magicbits mathod
     mcodes[i] = mortonEncode_magicbits(codes[i*DIM], codes[i*DIM + 1], codes[i*DIM + 2]);

@@ -4,17 +4,16 @@
 #include "lib.h"
 
 
-
 void data_rearrangement(float *Y, float *X, 
 			unsigned int *permutation_vector, 
-			int N){
-
+			int N)
+{
   int i=0;
-  #pragma omp parallel  shared(X,Y,permutation_vector)
-  #pragma private(index,i)
+  #pragma omp parallel shared(X, Y, permutation_vector) private(i)
   {
-    #pragma omp for schedule(guided) nowait
-    for(i=0; i<N; i++){
+    #pragma omp for schedule(guided)
+    for (i = 0; i < N; ++i)
+    {
       memcpy(&Y[i*DIM], &X[permutation_vector[i]*DIM], DIM*sizeof(float));
     }
   }

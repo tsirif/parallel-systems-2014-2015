@@ -2,8 +2,6 @@
 #include "stdlib.h"
 #include "string.h"
 
-#define CILK
-
 #ifdef CILK
 #include <cilk/cilk.h>
 #endif
@@ -14,10 +12,11 @@
 void data_rearrangement(float *Y, float *X, 
 			unsigned int *permutation_vector, 
 			int N){
+  int i;
 #ifdef CILK
-  cilk_for(int i=0; i<N; i++){
+  cilk_for(i=0; i<N; i++){
 #else
-    for(int i=0; i<N; i++){
+  for(i=0; i<N; i++){
 #endif
     memcpy(&Y[i*DIM], &X[permutation_vector[i]*DIM], DIM*sizeof(float));
   }

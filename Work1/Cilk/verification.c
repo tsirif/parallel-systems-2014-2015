@@ -16,8 +16,8 @@ int check_index(unsigned int *index, int N){
 
 
   /* Check if all indexes are present in the input vector */
-  int count = 0;
-  for(int i=0; i<N; i++){
+  int i, count = 0;
+  for(i=0; i<N; i++){
     count += (index[i] == i);
   }
 
@@ -35,8 +35,8 @@ int check_codes(float *X, unsigned long int *morton_codes,
 
   // count the number of leafs
   int counter = 0;
-  int clevel = 0; 
-  for(int i=0; i<N; i++){
+  int i, clevel = 0; 
+  for(i=0; i<N; i++){
     if(level_record[i]>0){
       mcode = morton_codes[i] >> (3*(maxlev - level_record[i]));
       clevel = level_record[i];
@@ -52,4 +52,3 @@ int check_codes(float *X, unsigned long int *morton_codes,
   return(counter == N);
 
 }
-
