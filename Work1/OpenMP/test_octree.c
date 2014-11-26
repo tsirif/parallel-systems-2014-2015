@@ -3,17 +3,20 @@
 #include "sys/time.h"
 #include "lib.h"
 
-
+THREADS = 8 ;
 
 int main(int argc, char** argv){
 
   // Time counting variables 
   struct timeval startwtime, endwtime;
 
-  if (argc != 6) { // Check if the command line arguments are correct 
+  if (argc < 6) { // Check if the command line arguments are correct 
     printf("Usage: %s N dist pop rep P\n where\n N:number of points\n dist: distribution code (0-cube, 1-Plummer)\n pop: population threshold\n rep: repetitions\n L: maximum tree height.\n", argv[0]);
     return (1);
   }
+  if (argc == 7)
+    THREADS = atoi(argv[6]);
+  
 
   // Input command line arguments
   int N = atoi(argv[1]); // Number of points
@@ -39,7 +42,7 @@ int main(int argc, char** argv){
   for(i=0; i<N; i++){
     index[i] = i;
   }
-  
+  // Set the number of threads.
   omp_set_num_threads(THREADS);
 
   /* Generate a 3-dimensional data distribution */

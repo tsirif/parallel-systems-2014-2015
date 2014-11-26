@@ -15,8 +15,7 @@ inline unsigned int compute_code(float x, float low, float step)
 void quantize(unsigned int *codes, float *X,
     float *low, float step, int N)
 {
-  // Split the data into chunks so that every thread has at least 2 
-  // chunks to work on and thus we can better balance the data load.
+
   int i = 0, j = 0; 
   // Index of element to be accessed.
   int index;

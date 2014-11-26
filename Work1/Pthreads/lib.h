@@ -5,9 +5,9 @@
  *  general variables.  **/
 
 #include "pthread.h"
-#define THREADS 8
 #define DIM 3
 
+extern int  THREADS;
 
 
 #endif

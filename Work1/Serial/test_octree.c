@@ -14,7 +14,7 @@ int main(int argc, char** argv){
   // Time counting variables 
   struct timeval startwtime, endwtime;
 
-  if (argc != 6) { // Check if the command line arguments are correct 
+  if (argc < 6) { // Check if the command line arguments are correct 
     printf("Usage: %s N dist pop rep P\n"
 	   "where\n"
 	   "N    : number of points\n"

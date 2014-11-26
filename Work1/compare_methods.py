@@ -153,7 +153,7 @@ def make_graph(title_method, graph_type, xdata, args_list):
     compile_methods()
     serial_performance = list()
     for args in args_list:
-        print '.',
+        print '.'
         run(args, 'Serial')
         mean_duration, success = get_results('Serial')
         serial_performance.append(mean_duration)
@@ -170,56 +170,75 @@ def make_graph(title_method, graph_type, xdata, args_list):
 
 
 def show_perfomance():
-    xdata = np.arange(1000000, 5000000, 50000)
-    args_list = [[str(i), '0', '98', '5', '15']
+    xdata = np.arange(1000000, 40000000, 1000000)
+    args_list = [[str(i), '0', '98', '5', '8']
                  for i in xdata]
-    title_method = ' perfomance by N (P=98,L=15,cube)'
+    title_method = ' perfomance by N (P=98,L=8,cube)'
     graph_type = 'N_cube'
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
 
-    xdata = np.arange(68, 128, 1)
-    args_list = [['2500000', '0', str(i), '5', '15']
+    xdata = np.arange(40, 500, 8)
+    args_list = [['5000000', '0', str(i), '5', '15']
                  for i in xdata]
-    title_method = ' perfomance by P (N=2500000,L=15,cube)'
+    title_method = ' perfomance by P (N=5000000,L=15,cube)'
     graph_type = 'P_cube'
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
 
-    xdata = np.arange(10, 25, 1)
-    args_list = [['2500000', '0', '98', '5', str(i)]
+    xdata = np.arange(4, 24, 2)
+    args_list = [['5000000', '0', '98', '5', str(i)]
                  for i in xdata]
-    title_method = ' perfomance by L (N=2500000,P=98,cube)'
+    title_method = ' perfomance by L (N=5000000,P=98,cube)'
     graph_type = 'L_cube'
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
-
-    xdata = np.arange(1000000, 5000000, 50000)
-    args_list = [[str(i), '1', '98', '5', '15']
+    
+    xdata = np.arange(4 , 64 , 4)
+    args_list = [['5000000', '0', '100', '5', '8' , str(i)]
                  for i in xdata]
-    title_method = ' perfomance by N (P=98,L=15,cube)'
+    title_method = ' perfomance by Threads (N=5000000,P=100,L=8,cube)'
+    graph_type = 'Thread_cube'
+    print "Making "+graph_type+" graphs!..."
+    make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
+    
+
+    xdata = np.arange(1000000, 40000000, 1000000)
+    args_list = [[str(i), '1', '98', '5', '8']
+                 for i in xdata]
+    title_method = ' perfomance by N (P=98,L=8,plummer)'
     graph_type = 'N_plummer'
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
 
-    xdata = np.arange(68, 128, 1)
-    args_list = [['2500000', '1', str(i), '5', '15']
+    xdata = np.arange(40, 500, 8)
+    args_list = [['5000000', '1', str(i), '5', '15']
                  for i in xdata]
-    title_method = ' perfomance by P (N=2500000,L=15,cube)'
+    title_method = ' perfomance by P (N=5000000,L=15,plummer)'
     graph_type = 'P_plummer'
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
 
-    xdata = np.arange(10, 25, 1)
-    args_list = [['2500000', '1', '98', '5', str(i)]
+    xdata = np.arange(4, 24, 2)
+    args_list = [['5000000', '1', '98', '5', str(i)]
                  for i in xdata]
-    title_method = ' perfomance by L (N=2500000,P=98,cube)'
+    title_method = ' perfomance by L (N=5000000,P=98,plummer)'
     graph_type = 'L_plummer'
+    print "Making "+graph_type+" graphs!..."
+    make_graph(title_method, graph_type, xdata, args_list)
+    print "Done!"
+    
+    xdata = np.arange(4, 64 , 4)
+    args_list = [['5000000', '0', '100', '5', '8' , str(i)]
+                 for i in xdata]
+    title_method = ' perfomance by Threads (N=5000000,P=100,L=8,plummer)'
+    graph_type = 'Thread_plummer'
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"

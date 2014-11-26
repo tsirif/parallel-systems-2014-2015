@@ -4,7 +4,7 @@
 /** Helper header file used to include OpenMP library.  **/
 
 #include "omp.h"
-#define THREADS 8
+extern int  THREADS;
 #define DIM 3
 
 #endif
