@@ -3,6 +3,8 @@
 #include "sys/time.h"
 #include "utils.h"
 
+#define CILK
+
 #ifdef CILK
 #include <cilk/cilk.h>
 #endif

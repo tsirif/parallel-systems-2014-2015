@@ -13,6 +13,8 @@ date: Oct 2014
 #include "sys/time.h"
 #include "time.h"
 
+#define CILK
+
 #ifdef CILK
 #include <cilk/cilk.h>
 #endif
