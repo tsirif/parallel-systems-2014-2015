@@ -256,7 +256,7 @@ if __name__ == "__main__":
         if len(argv) == 5:
             args = argv
         else:
-            args = ['2500000', '0', '98', '5', '10']
+            args = ['1000000', '0', '98', '5', '10']
         compile_methods()
         run_methods(args)
         time_results, success_results = get_method_results()
