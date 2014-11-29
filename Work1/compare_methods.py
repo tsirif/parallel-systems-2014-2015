@@ -105,7 +105,7 @@ def compare_results(N, P, L, results, show=False):
 
 def compare_methods():
     args_list = [[str(i), '0', str(j), '5', str(k)]
-                 for i in range(500000, 2500000, 500000)
+                 for i in range(1000000, 15000000, 3000000)
                  for j in range(68, 138, 30)
                  for k in range(10, 25, 5)]
     compile_methods()
@@ -153,7 +153,7 @@ def make_graph(title_method, graph_type, xdata, args_list):
     compile_methods()
     serial_performance = list()
     for args in args_list:
-        print '.'
+        print '.',
         run(args, 'Serial')
         mean_duration, success = get_results('Serial')
         serial_performance.append(mean_duration)
@@ -179,7 +179,7 @@ def show_perfomance():
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
 
-    xdata = np.arange(40, 500, 8)
+    xdata = np.arange(40, 500, 10)
     args_list = [['5000000', '0', str(i), '5', '15']
                  for i in xdata]
     title_method = ' perfomance by P (N=5000000,L=15,cube)'
@@ -196,16 +196,15 @@ def show_perfomance():
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
-    
-    xdata = np.arange(4 , 64 , 4)
-    args_list = [['5000000', '0', '100', '5', '8' , str(i)]
-                 for i in xdata]
-    title_method = ' perfomance by Threads (N=5000000,P=100,L=8,cube)'
-    graph_type = 'Thread_cube'
-    print "Making "+graph_type+" graphs!..."
-    make_graph(title_method, graph_type, xdata, args_list)
-    print "Done!"
-    
+
+    #xdata = np.arange(4, 64, 4)
+    #args_list = [['5000000', '0', '100', '5', '8', str(i)]
+                 #for i in xdata]
+    #title_method = ' perfomance by Threads (N=5000000,P=100,L=8,cube)'
+    #graph_type = 'Thread_cube'
+    #print "Making "+graph_type+" graphs!..."
+    #make_graph(title_method, graph_type, xdata, args_list)
+    #print "Done!"
 
     xdata = np.arange(1000000, 40000000, 1000000)
     args_list = [[str(i), '1', '98', '5', '8']
@@ -233,15 +232,15 @@ def show_perfomance():
     print "Making "+graph_type+" graphs!..."
     make_graph(title_method, graph_type, xdata, args_list)
     print "Done!"
-    
-    xdata = np.arange(4, 64 , 4)
-    args_list = [['5000000', '0', '100', '5', '8' , str(i)]
-                 for i in xdata]
-    title_method = ' perfomance by Threads (N=5000000,P=100,L=8,plummer)'
-    graph_type = 'Thread_plummer'
-    print "Making "+graph_type+" graphs!..."
-    make_graph(title_method, graph_type, xdata, args_list)
-    print "Done!"
+
+    #xdata = np.arange(4, 64, 4)
+    #args_list = [['5000000', '0', '100', '5', '8', str(i)]
+                 #for i in xdata]
+    #title_method = ' perfomance by Threads (N=5000000,P=100,L=8,plummer)'
+    #graph_type = 'Thread_plummer'
+    #print "Making "+graph_type+" graphs!..."
+    #make_graph(title_method, graph_type, xdata, args_list)
+    #print "Done!"
 
 
 if __name__ == "__main__":
