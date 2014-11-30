@@ -4,7 +4,7 @@
 #include "lib.h"
 
 #define MAXBINS 8
-#define MAXLEVEL 1
+#define MAXPARTICLES 20000
 
 void truncated_radix_sort(unsigned long int *morton_codes,
     unsigned long int *sorted_morton_codes,
@@ -100,7 +100,7 @@ void * calculate_bin_sizes(void *arg)
     
   pthread_spin_unlock(dataPtr->lock);
   
-} // End of thread function 
+  } // End of thread function 
 
 
 void swap_long(unsigned long int **x, unsigned long int **y)
@@ -132,6 +132,7 @@ void *threaded_radix_sort(void *arg)
     dataPtr->N,
     dataPtr->population_threshold,
     dataPtr->sft,dataPtr->lv);
+    
 } // End of pthread Radix Callback
 
 // Truncated Radix sort function.
@@ -144,12 +145,22 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     int population_threshold,
     int sft, int lv)
 {
+  static int Max_Recursion_level;
+  static starting_pop;
+  // If we start sorting the data assign the maximum number of 
+  // parallel recursions that will be made.
+  if (lv==0)
+  {
+    Max_Recursion_level = ((int)log2f(sft/3 ) ) - 1  ;
+    if (Max_Recursion_level <= 1 )
+      Max_Recursion_level = 1 ;
+    starting_pop = N ;
+  }
   
   if(N<=0){
 
     return;
-  }
-  
+  }  
   else if (N <= population_threshold || sft < 0)
   { 
     // Record the level of the node.
@@ -163,19 +174,23 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   }
   else
   {
+
     // Record the level of the node.
     level_record[0] = lv;
     int bin_offsets[MAXBINS] = {0};
     int bin_offsets_cnt[MAXBINS] = {0};
     int i = 0, j = 0;
-    
+
+
     
     // If we are not deep enough in the recursive algorithm 
+    // and if there are enough particles 
     // use the parallel MSB radix sort. 
     // This is done so as not to create a huge number of threads
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
-    if (lv < MAXLEVEL)
+
+    if ( N > starting_pop / MAXBINS  && lv < Max_Recursion_level )
     {
       
       
@@ -419,4 +434,5 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       }
     }  // should we run in parallel?
   }  // have we reached a leaf node?
+  
 } // End of Radix Sort

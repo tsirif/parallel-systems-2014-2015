@@ -7,7 +7,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-METHODS = ['Serial', 'OpenMP', 'Pthreads', 'Cilk']
+METHODS = ['Serial', 'OpenMP', 'Pthreads', 'Pthreads_dynamic_depth', 'Cilk']
 LIBRARIES = ['hash', 'morton', 'radix', 'rearrange']
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 
@@ -255,7 +255,7 @@ if __name__ == "__main__":
         if len(argv) == 5:
             args = argv
         else:
-            args = ['1000000', '0', '98', '5', '10']
+            args = ['2500000', '0', '68', '5', '10']
         compile_methods()
         run_methods(args)
         time_results, success_results = get_method_results()
