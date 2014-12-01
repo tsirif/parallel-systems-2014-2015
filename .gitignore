@@ -34,6 +34,8 @@
 # Text/Log Files
 *.txt
 *.swp
+*.log
+*.pdf
 
 # Python
 *.pyc
@@ -41,3 +43,5 @@
 
 # Images
 *.png
+*.plt
+*.cvdata
