@@ -29,12 +29,12 @@ inline void swap(unsigned int **x, unsigned int **y){
 
 }
 
-void truncated_radix_sort(unsigned long int *morton_codes, 
-			  unsigned long int *sorted_morton_codes, 
+void truncated_radix_sort(unsigned long int *morton_codes,
+			  unsigned long int *sorted_morton_codes,
 			  unsigned int *permutation_vector,
 			  unsigned int *index,
 			  unsigned int *level_record,
-			  int N, 
+			  int N,
 			  int population_threshold,
 			  int sft, int lv){
 
@@ -52,7 +52,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 
     level_record[0] = lv; // record the level of the node
     memcpy(permutation_vector, index, N*sizeof(unsigned int)); // Copy the pernutation vector
-    memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int)); // Copy the Morton codes 
+    memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int)); // Copy the Morton codes
 
     return;
   }
@@ -60,13 +60,13 @@ void truncated_radix_sort(unsigned long int *morton_codes,
 
     int i, j;
     level_record[0] = lv;
-    // Find which child each point belongs to 
+    // Find which child each point belongs to
     for(j=0; j<N; j++){
       unsigned int ii = (morton_codes[j]>>sft) & 0x07;
       BinSizes[ii]++;
     }
 
-    // scan prefix (must change this code)  
+    // scan prefix (must change this code)
     int offset = 0;
     for(i=0; i<MAXBINS; i++){
       int ss = BinSizes[i];
@@ -74,37 +74,37 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       offset += ss;
       BinSizes[i] = offset;
     }
-    
+
     for(j=0; j<N; j++){
       unsigned int ii = (morton_codes[j]>>sft) & 0x07;
       permutation_vector[BinCursor[ii]] = index[j];
       sorted_morton_codes[BinCursor[ii]] = morton_codes[j];
       BinCursor[ii]++;
     }
-    
-    //swap the index pointers  
+
+    //swap the index pointers
     swap(&index, &permutation_vector);
 
-    //swap the code pointers 
+    //swap the code pointers
     swap_long(&morton_codes, &sorted_morton_codes);
 
     /* Call the function recursively to split the lower levels */
 #ifdef CILK
-  cilk_for(i=0; i<MAXBINS; i++){
+  cilk_for(i=0; i<MAXBINS; i++) {
 #else
-  for(i=0; i<MAXBINS; i++){
+  for(i=0; i<MAXBINS; i++) {
 #endif
       int offset = (i>0) ? BinSizes[i-1] : 0;
       int size = BinSizes[i] - offset;
-      
-      truncated_radix_sort(&morton_codes[offset], 
-			   &sorted_morton_codes[offset], 
-			   &permutation_vector[offset], 
-			   &index[offset], &level_record[offset], 
-			   size, 
+
+      truncated_radix_sort(&morton_codes[offset],
+			   &sorted_morton_codes[offset],
+			   &permutation_vector[offset],
+			   &index[offset], &level_record[offset],
+			   size,
 			   population_threshold,
 			   sft-3, lv+1);
     }
-  } 
+  }
 }
 
