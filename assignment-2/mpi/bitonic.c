@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 
   MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  printf("\n%d", numTasks);
 
   /*
    * The master process checks that the correct number of processes
@@ -93,7 +94,7 @@ int main(int argc, char *argv[])
   sprintf(filename, "output_%d.txt", rank);
   f = fopen(filename, "w");
   for (int i = 0; i < N; ++i) {
-    fprintf(f, "%d\n", in_array[i]);
+    fprintf(f, "%d\n", array[i]);
   }
   fclose(f);
 
