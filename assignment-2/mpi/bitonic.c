@@ -5,10 +5,11 @@
 #include "mpi.h"
 
 
-inline void exchange(int* a, int i, int* b, int j);
-void send(int tag, int receiver, int* in_array, int N);
-void receive_and_compare(int tag, int sender,
-                         int* in_array, int* out_array, int N, int dir);
+inline void swap(int **x, int **y);
+void swap_process_data(int** array_in, int** array_out, int N, int fellow, int tag, int dir);
+void compare_and_keep(int** array_in, int* array_out, int N, int dir);
+void test_validity(int* array, int N, int numTasks, int rank);
+int* tmp_array = NULL;
 
 int cmpfunc(const void* a, const void* b)
 {
@@ -17,7 +18,6 @@ int cmpfunc(const void* a, const void* b)
 
 int main(int argc, char *argv[])
 {
-  printf("A");
   if (argc != 3) {
     /* If not print a warning message with the correct way to use */
     /* the program and terminate the execution. */
@@ -31,19 +31,18 @@ int main(int argc, char *argv[])
  *                           Initialize Processors                            *
  ******************************************************************************/
 
-  int numTasks, rank, rc, N;
+  int numTasks, rank, rc, N, i;
 
   N = 1<<atoi(argv[2]);
 
   rc = MPI_Init(&argc,&argv);
   if (rc != MPI_SUCCESS) {
-    printf ("Error starting MPI program. Terminating.\n");
+    printf("Error starting MPI program.\nTerminating.\n");
     MPI_Abort(MPI_COMM_WORLD, rc);
   }
 
   MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  printf("\n%d", numTasks);
 
   /*
    * The master process checks that the correct number of processes
@@ -57,84 +56,183 @@ int main(int argc, char *argv[])
       MPI_Abort(MPI_COMM_WORLD, 2);
       exit(2);
   }
-  printf("B");
 
-  int* array = (int*) malloc(N * sizeof(int));
-  int* array_tmp = (int*) malloc(N * sizeof(int));
+  int* in_array = (int*) malloc(N * sizeof(int));
+  int* out_array = (int*) malloc(N * sizeof(int));
+  tmp_array = (int*) malloc(N * sizeof(int));
+  if (in_array == NULL || out_array == NULL || tmp_array == NULL) {
+    printf("Memory allocation error: couldn't allocate enough memory.\nTerminating.\n");
+    MPI_Abort(MPI_COMM_WORLD, 3);
+    exit(3);
+  }
+
+/******************************************************************************
+ *                          Generate random dataset                           *
+ ******************************************************************************/
 
   if (rank == 0) {
     srand(time(NULL));
   }
 
-  for (int i = 0; i < N; ++i) {
-    array[i] = rand();
+  for (i = 0; i < N; ++i) {
+    in_array[i] = rand();
   }
-  printf("C");
 
-  qsort(array, N, sizeof(int), cmpfunc);
+/******************************************************************************
+ *                           Parallel Bitonic Sort                            *
+ ******************************************************************************/
+  // Initially each processor sort serially its own data.
+  qsort(in_array, N, sizeof(int), cmpfunc);
 
-  int k, j;
+  int k, j, dir;
 
-  printf("\nD%d", numTasks);
   for (k = 2; k <= numTasks; k = k<<1) {
     for (j = k>>1; j > 0; j = j>>1) {
       MPI_Barrier(MPI_COMM_WORLD);
-      if ((rank ^ j) > rank) {
-        send(rank+2*j+k, rank+j, array, N);
+      dir = rank&k;
+      /* if (rank == 1) { */
+        /* printf("pre\n"); */
+        /* printf("in_array\n"); */
+        /* for (int i = 0; i < N; ++i) { */
+          /* printf("%d\n", in_array[i]); */
+        /* } */
+        /* printf("out_array\n"); */
+        /* for (int i = 0; i < N; ++i) { */
+          /* printf("%d\n", out_array[i]); */
+        /* } */
+      /* } */
+      if ((rank^j) > rank) {
+        dir = !dir;
+        swap_process_data(&in_array, &out_array, N, rank+j, rank+2*j+k, dir);
       }
       else {
-        receive_and_compare(rank+j+k, rank-j, array, array_tmp, N, rank&k);
+        swap_process_data(&in_array, &out_array, N, rank-j, rank+j+k, dir);
       }
-      qsort(array, N, sizeof(int), cmpfunc);
+      /* if (rank == 1) { */
+        /* printf("ppre\n"); */
+        /* printf("in_array\n"); */
+        /* for (int i = 0; i < N; ++i) { */
+          /* printf("%d\n", in_array[i]); */
+        /* } */
+        /* printf("out_array\n"); */
+        /* for (int i = 0; i < N; ++i) { */
+          /* printf("%d\n", out_array[i]); */
+        /* } */
+      /* } */
+      compare_and_keep(&in_array, out_array, N, dir);
+      /* if (rank == 1) { */
+        /* printf("post\n"); */
+        /* printf("in_array\n"); */
+        /* for (int i = 0; i < N; ++i) { */
+          /* printf("%d\n", in_array[i]); */
+        /* } */
+      /* } */
     }
   }
 
-  char filename[10];
-  FILE* f;
-  sprintf(filename, "output_%d.txt", rank);
-  f = fopen(filename, "w");
-  for (int i = 0; i < N; ++i) {
-    fprintf(f, "%d\n", array[i]);
-  }
-  fclose(f);
+  /* char filename[10]; */
+  /* FILE* f; */
+  /* sprintf(filename, "output_%d.txt", rank); */
+  /* f = fopen(filename, "w"); */
+  /* for (int i = 0; i < N; ++i) { */
+    /* fprintf(f, "%d\n", in_array[i]); */
+  /* } */
+  /* fclose(f); */
 
-  free(array);
-  free(array_tmp);
+/******************************************************************************
+ *                         Test validity of algorithm                         *
+ ******************************************************************************/
+
+  test_validity(in_array, N, numTasks, rank);
+
+  free(in_array);
+  free(out_array);
+  free(tmp_array);
+
   MPI_Finalize();
 
   return 0;
 }
 
-/** INLINE procedure exchange() : pair swap **/
-inline void exchange(int* a, int i, int* b, int j)
+inline void swap(int **x, int **y)
 {
-  int t;
-  t = a[i];
-  a[i] = b[j];
-  b[j] = t;
+  int *tmp;
+  tmp = x[0];
+  x[0] = y[0];
+  y[0] = tmp;
 }
 
-void send(int tag, int receiver, int* in_array, int N)
+void swap_process_data(int** array_in, int** array_out, int N, int fellow, int tag, int dir)
 {
-  /* for (int i = 0; i < N; ++i) {                                          */
-  /*   MPI_Isend(&array[i], 1, MPI_INT, receiver, 1, MPI_COMM_WORLD, &req); */
-  /* }                                                                      */
-  MPI_Status stat;
-  /* int* incoming = (int*) malloc(N * sizeof(int)); */
-  MPI_Send(in_array, N, MPI_INT, receiver, tag, MPI_COMM_WORLD);
-  MPI_Recv(in_array, N, MPI_INT, receiver, tag, MPI_COMM_WORLD, &stat);
-}
-
-void receive_and_compare(int tag, int sender,
-                         int* in_array, int* out_array, int N, int dir)
-{
-  MPI_Status stat;
-  MPI_Recv(out_array, N, MPI_INT, sender, tag, MPI_COMM_WORLD, &stat);
-  for (int i = 0; i < N; ++i) {
-    if (dir == 0 && out_array[i] > in_array[N-i-1])
-      exchange(out_array, i, in_array, N-i-1);
-    if (dir != 0 && out_array[i] < in_array[N-i-1])
-      exchange(out_array, i, in_array, N-i-1);
+  MPI_Status status;
+  if (dir == 0) {
+    MPI_Send(*array_in, N, MPI_INT, fellow, tag, MPI_COMM_WORLD);
+    MPI_Recv(*array_out, N, MPI_INT, fellow, tag, MPI_COMM_WORLD, &status);
   }
-  MPI_Send(out_array, N, MPI_INT, sender, tag, MPI_COMM_WORLD);
+  else {
+    MPI_Recv(*array_out, N, MPI_INT, fellow, tag, MPI_COMM_WORLD, &status);
+    MPI_Send(*array_in, N, MPI_INT, fellow, tag, MPI_COMM_WORLD);
+  }
+}
+
+void compare_and_keep(int** array_in, int* array_out, int N, int dir)
+{
+  int i, in_flag, out_flag;
+  out_flag = in_flag = dir == 0 ? N-1 : 0;
+  /* if (dir == 0) { */
+    /* printf("%d\n", N); */
+    /* printf("of: %d\n", out_flag); */
+    /* printf("if: %d\n", in_flag); */
+  /* } */
+  for (i = 0; i < N; ++i) {
+    if (dir == 0) {
+      if ((*array_in)[in_flag] > array_out[out_flag]) {
+        /* printf("%d: %d\n", N-i-1, (*array_in)[in_flag]); */
+        tmp_array[N-i-1] = (*array_in)[in_flag--];
+      }
+      else {
+        /* printf("%d: %d\n", N-i-1, (array_out)[out_flag]); */
+        tmp_array[N-i-1] = array_out[out_flag--];
+      }
+    }
+    else {
+      if ((*array_in)[in_flag] > array_out[out_flag])
+        tmp_array[i] = array_out[out_flag++];
+      else
+        tmp_array[i] = (*array_in)[in_flag++];
+    }
+  }
+  /* if (dir == 0) { */
+    /* printf("tmp_array\n"); */
+    /* for (int i = 0; i < N; ++i) { */
+      /* printf("%d\n", tmp_array[i]); */
+    /* } */
+  /* } */
+  swap(array_in, &tmp_array);
+}
+
+void test_validity(int* array, int N, int numTasks, int rank)
+{
+  int i;
+  int final_size = N * numTasks;
+  int *final;
+  if (rank == 0) {
+    final = (int*) malloc(final_size * sizeof(int));
+    if (final == NULL) {
+      printf("Could not allocate memory for the buffer so as to "
+          "receive all the data. The test will not be performed! \n ");
+      return;
+    }
+  }
+  MPI_Gather(array, N, MPI_INT, final, N, MPI_INT, 0, MPI_COMM_WORLD);
+  if (rank == 0) {
+    int fail = 0;
+    for (i = 1; i < final_size; ++i) {
+      fail = (fail || (final[i] < final[i-1]));
+      if (fail) break;
+    }
+    printf("Parallel bitonic sort - validity test: ");
+    if (fail) printf("FAIL\n");
+    else printf("PASS\n");
+  }
 }
