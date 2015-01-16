@@ -37,6 +37,7 @@
 *.swp
 *.log
 *.pdf
+*.bin
 
 # Python
 *.pyc
