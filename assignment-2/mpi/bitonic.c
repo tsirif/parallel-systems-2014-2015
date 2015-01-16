@@ -28,9 +28,9 @@ int main(int argc, char *argv[])
   int num_tasks, N;
   long int seed;
   if (argc < 3) {
-    printf("Invalid command line argument option! \n");
+    printf("Invalid command line argument option!\n");
     printf("Usage : %s p q where p is the number of MPI processes to "
-    "be spawned and q the number of elements in each process.\n ", argv[0]);
+    "be spawned and q the number of elements in each process.\n", argv[0]);
     exit(1);
   }
   else {
@@ -85,6 +85,8 @@ int main(int argc, char *argv[])
 
   int i;
 #ifdef SFMT  // if with SIMD fast mersenne twister prg
+  if (rank == 0)
+    printf("Generating random with SFMT.\n");
   sfmt_t sfmt;
   sfmt_init_gen_rand(&sfmt, seed+rank+time(NULL));
 
@@ -93,6 +95,7 @@ int main(int argc, char *argv[])
   }
 #else
   if (rank == 0) {
+    printf("Generating random by default rand generator.\n");
     srand(time(NULL));
   }
   for (i = 0; i < N; ++i) {
@@ -100,12 +103,51 @@ int main(int argc, char *argv[])
   }
 #endif  // SFMT
 
+  /* if (rank == 0) { */
+    /* printf("YOLO!\n"); */
+    /* print_array(in_array, N); */
+  /* } */
+
+#ifdef COMPARE
+  int final_size = N * num_proc;
+  uint64_t* final;
+  char comparison = 1;
+  if (rank == 0) {
+    final = (uint64_t*) malloc(final_size * sizeof(uint64_t));
+    if (final == NULL) {
+      printf("Could not allocate memory for the buffer "
+             "so as to receive all the data.\n");
+      printf("Comparison with  will not be performed!\n");
+      comparison = 0;
+    }
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (comparison) {
+    MPI_Gather(in_array, N, MPI_UNSIGNED_LONG,
+               final, N, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  }
+#endif  // COMPARE
+
 /******************************************************************************
  *                           Parallel Bitonic Sort                            *
  ******************************************************************************/
 
+#if defined(TIME) || defined(COMPARE)
+  struct timeval startwtime, endwtime;
+  double seq_time;
+  if (rank == 0) {
+	  gettimeofday(&startwtime, NULL);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif  // TIME or COMPARE
+
   // Initially each processor sort serially its own data.
   qsort(in_array, N, sizeof(uint64_t), cmpfunc);
+
+  /* if (rank == 0) { */
+    /* printf("YO!\n"); */
+    /* print_array(in_array, N); */
+  /* } */
 
   int k, j, dir;
 
@@ -124,6 +166,21 @@ int main(int argc, char *argv[])
     }
   }
 
+#if defined(TIME) || defined(COMPARE)
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == 0) {
+    gettimeofday(&endwtime, NULL);
+    seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
+            + endwtime.tv_sec - startwtime.tv_sec);
+    printf("parallel bitonic clock time = %f\n", seq_time);
+  }
+#endif  // TIME or COMPARE
+
+  /* if (rank == 0) { */
+    /* printf("YOLOR!\n"); */
+    /* print_array(in_array, N); */
+  /* } */
+
 #ifdef FILEOUT
   char filename[10];
   FILE* f;
@@ -141,13 +198,31 @@ int main(int argc, char *argv[])
 
 #ifdef TEST
   test_validity(in_array, N, num_proc, rank);
-#endif
+#endif  // TEST
 
   free(in_array);
   free(out_array);
   free(tmp_array);
 
   MPI_Finalize();
+
+/******************************************************************************
+ *                       Compare with Serial Quicksort                        *
+ ******************************************************************************/
+
+#ifdef COMPARE
+  if (rank == 0) {
+    if (comparison) {
+      gettimeofday(&startwtime, NULL);
+      qsort(final, final_size, sizeof(uint64_t), cmpfunc);
+      gettimeofday(&endwtime, NULL);
+      seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
+      + endwtime.tv_sec - startwtime.tv_sec);
+      printf("serial quicksort clock time = %f\n\n", seq_time);
+      free(final);
+    }
+  }
+#endif  // COMPARE
 
   return 0;
 }
@@ -220,15 +295,17 @@ inline void test_validity(uint64_t* array, int N, int numTasks, int rank)
       return;
     }
   }
-  MPI_Gather(array, N, MPI_UNSIGNED_LONG, final, N, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(array, N, MPI_UNSIGNED_LONG,
+             final, N, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
   if (rank == 0) {
     int fail = 0;
     for (i = 1; i < final_size; ++i) {
-      fail = (fail || (final[i] < final[i-1]));
+      fail = fail || (final[i] < final[i-1]);
       if (fail) break;
     }
     printf("Parallel bitonic sort - validity test: ");
     if (fail) printf("FAIL\n");
     else printf("PASS\n");
+    free(final);
   }
 }
