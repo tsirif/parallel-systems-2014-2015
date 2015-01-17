@@ -4,20 +4,21 @@
 #include <time.h>
 #include "mpi.h"
 
-#ifdef SFMT
-#include "SFMT/SFMT.h"
+#ifdef DCMT
+#include "dcmt/include/dc.h"
 #endif
 
 
-inline void swap(uint64_t** x, uint64_t** y);
-inline void print_array(uint64_t* array, int N);
+inline void swap(uint32_t** x, uint32_t** y);
+inline void print_array(uint32_t* array, int N);
 int cmpfunc(const void* a, const void* b);
-void swap_process_data(uint64_t** array_in, uint64_t** array_out,
+void swap_process_data(uint32_t** array_in, uint32_t** array_out,
                        int N, int fellow, int tag, int dir);
-void compare_and_keep(uint64_t** array_in, uint64_t* array_out,
+void compare_and_keep(uint32_t** array_in, uint32_t* array_out,
                       int N, int dir);
-inline void test_validity(uint64_t* array, int N, int numTasks, int rank);
-uint64_t* tmp_array = NULL;
+inline void test_validity(uint32_t* array, int N, int numTasks, int rank);
+inline void output_array(uint32_t* array, int N, int rank);
+uint32_t* tmp_array = NULL;
 
 int main(int argc, char *argv[])
 {
@@ -70,9 +71,9 @@ int main(int argc, char *argv[])
       MPI_Abort(MPI_COMM_WORLD, 2);
   }
 
-  uint64_t* in_array = (uint64_t*) malloc(N * sizeof(uint64_t));
-  uint64_t* out_array = (uint64_t*) malloc(N * sizeof(uint64_t));
-  tmp_array = (uint64_t*) malloc(N * sizeof(uint64_t));
+  uint32_t* in_array = (uint32_t*) malloc(N * sizeof(uint32_t));
+  uint32_t* out_array = (uint32_t*) malloc(N * sizeof(uint32_t));
+  tmp_array = (uint32_t*) malloc(N * sizeof(uint32_t));
   if (in_array == NULL || out_array == NULL || tmp_array == NULL) {
     printf("Memory allocation error: couldn't allocate enough memory.\n");
     printf("Terminating.\n");
@@ -84,15 +85,23 @@ int main(int argc, char *argv[])
  ******************************************************************************/
 
   int i;
-#ifdef SFMT  // if with SIMD fast mersenne twister prg
+#if defined(DCMT)  // if with dynamic creator of mersenne twisters prg
   if (rank == 0)
-    printf("Generating random with SFMT.\n");
-  sfmt_t sfmt;
-  sfmt_init_gen_rand(&sfmt, seed+rank+time(NULL));
+    printf("Generating random with DCMT.\n");
+  mt_struct* mtst;
+  mtst = get_mt_parameter_id_st(32, 607, rank, 4172);
+  if (mtst == NULL) {
+    printf("Error finding an independent set of parameters for dcmt prg.\n");
+    printf("Terminating.\n");
+    MPI_Abort(MPI_COMM_WORLD, 4);
+  }
+  sgenrand_mt(time(NULL), mtst);
 
   for (i = 0; i < N; ++i) {
-    in_array[i] = sfmt_genrand_uint64(&sfmt);
+    in_array[i] = genrand_mt(mtst);
   }
+
+  free_mt_struct(mtst);
 #else
   if (rank == 0) {
     printf("Generating random by default rand generator.\n");
@@ -101,19 +110,19 @@ int main(int argc, char *argv[])
   for (i = 0; i < N; ++i) {
     in_array[i] = rand();
   }
-#endif  // SFMT
+#endif  // SCMT or else
 
-  /* if (rank == 0) { */
+  /* if (rank == 1) { */
     /* printf("YOLO!\n"); */
     /* print_array(in_array, N); */
   /* } */
 
 #ifdef COMPARE
   int final_size = N * num_proc;
-  uint64_t* final;
+  uint32_t* final;
   char comparison = 1;
   if (rank == 0) {
-    final = (uint64_t*) malloc(final_size * sizeof(uint64_t));
+    final = (uint32_t*) malloc(final_size * sizeof(uint32_t));
     if (final == NULL) {
       printf("Could not allocate memory for the buffer "
              "so as to receive all the data.\n");
@@ -123,8 +132,8 @@ int main(int argc, char *argv[])
   }
   MPI_Barrier(MPI_COMM_WORLD);
   if (comparison) {
-    MPI_Gather(in_array, N, MPI_UNSIGNED_LONG,
-               final, N, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    MPI_Gather(in_array, N, MPI_UNSIGNED,
+               final, N, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
   }
 #endif  // COMPARE
 
@@ -136,15 +145,15 @@ int main(int argc, char *argv[])
   struct timeval startwtime, endwtime;
   double seq_time;
   if (rank == 0) {
-	  gettimeofday(&startwtime, NULL);
+    gettimeofday(&startwtime, NULL);
   }
   MPI_Barrier(MPI_COMM_WORLD);
 #endif  // TIME or COMPARE
 
   // Initially each processor sort serially its own data.
-  qsort(in_array, N, sizeof(uint64_t), cmpfunc);
+  qsort(in_array, N, sizeof(uint32_t), cmpfunc);
 
-  /* if (rank == 0) { */
+  /* if (rank == 1) { */
     /* printf("YO!\n"); */
     /* print_array(in_array, N); */
   /* } */
@@ -176,28 +185,21 @@ int main(int argc, char *argv[])
   }
 #endif  // TIME or COMPARE
 
-  /* if (rank == 0) { */
+  /* if (rank == 1) { */
     /* printf("YOLOR!\n"); */
     /* print_array(in_array, N); */
   /* } */
 
-#ifdef FILEOUT
-  char filename[10];
-  FILE* f;
-  sprintf(filename, "output_%d.txt", rank);
-  f = fopen(filename, "w");
-  for (int i = 0; i < N; ++i) {
-    fprintf(f, "%lu\n", in_array[i]);
-  }
-  fclose(f);
-#endif  // FILE_OUT
+#if defined(FILEOUT) && !defined(TEST)
+  output_array(in_array, N, rank);
+#endif  // FILE_OUT and not TEST
 
 /******************************************************************************
  *                       Test Validity of Parallel Sort                       *
  ******************************************************************************/
 
 #ifdef TEST
-  test_validity(in_array, N, num_proc, rank);
+  test_validity(in_array, N, num_tasks, rank);
 #endif  // TEST
 
   free(in_array);
@@ -214,7 +216,7 @@ int main(int argc, char *argv[])
   if (rank == 0) {
     if (comparison) {
       gettimeofday(&startwtime, NULL);
-      qsort(final, final_size, sizeof(uint64_t), cmpfunc);
+      qsort(final, final_size, sizeof(uint32_t), cmpfunc);
       gettimeofday(&endwtime, NULL);
       seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
       + endwtime.tv_sec - startwtime.tv_sec);
@@ -224,44 +226,53 @@ int main(int argc, char *argv[])
   }
 #endif  // COMPARE
 
+  printf("Rank-%d finished successfully!\n", rank);
   return 0;
 }
 
-inline void swap(uint64_t **x, uint64_t **y)
+inline void swap(uint32_t **x, uint32_t **y)
 {
-  uint64_t *tmp;
+  uint32_t *tmp;
   tmp = x[0];
   x[0] = y[0];
   y[0] = tmp;
 }
 
-inline void print_array(uint64_t *array, int N)
+inline void print_array(uint32_t *array, int N)
 {
   for (int i = 0; i < N; ++i) {
-    printf("%lu\n", array[i]);
+    printf("%u\n", array[i]);
   }
 }
 
 int cmpfunc(const void* a, const void* b)
 {
-   return ( *(const uint64_t*)a - *(const uint64_t*)b );
+  if (*(const uint32_t*)a < *(const uint32_t*)b) return -1;
+  if (*(const uint32_t*)a == *(const uint32_t*)b) return 0;
+  return 1;
 }
 
-void swap_process_data(uint64_t** array_in, uint64_t** array_out,
+void swap_process_data(uint32_t** array_in, uint32_t** array_out,
                        int N, int fellow, int tag, int dir)
 {
-  MPI_Status status;
+  MPI_Request request[2];
+  MPI_Status status[2];
   if (dir == 0) {
-    MPI_Send(*array_in, N, MPI_UNSIGNED_LONG, fellow, tag, MPI_COMM_WORLD);
-    MPI_Recv(*array_out, N, MPI_UNSIGNED_LONG, fellow, tag, MPI_COMM_WORLD, &status);
+    MPI_Isend(*array_in, N, MPI_UNSIGNED, fellow,
+              tag, MPI_COMM_WORLD, &request[0]);
+    MPI_Irecv(*array_out, N, MPI_UNSIGNED, fellow,
+              tag, MPI_COMM_WORLD, &request[1]);
   }
   else {
-    MPI_Recv(*array_out, N, MPI_UNSIGNED_LONG, fellow, tag, MPI_COMM_WORLD, &status);
-    MPI_Send(*array_in, N, MPI_UNSIGNED_LONG, fellow, tag, MPI_COMM_WORLD);
+    MPI_Irecv(*array_out, N, MPI_UNSIGNED, fellow,
+              tag, MPI_COMM_WORLD, &request[0]);
+    MPI_Isend(*array_in, N, MPI_UNSIGNED, fellow,
+              tag, MPI_COMM_WORLD, &request[1]);
   }
+  MPI_Waitall(2, request, status);
 }
 
-void compare_and_keep(uint64_t** array_in, uint64_t* array_out, int N, int dir)
+void compare_and_keep(uint32_t** array_in, uint32_t* array_out, int N, int dir)
 {
   int i, in_flag, out_flag;
   out_flag = in_flag = dir == 0 ? N-1 : 0;
@@ -282,22 +293,28 @@ void compare_and_keep(uint64_t** array_in, uint64_t* array_out, int N, int dir)
   swap(array_in, &tmp_array);
 }
 
-inline void test_validity(uint64_t* array, int N, int numTasks, int rank)
+inline void test_validity(uint32_t* array, int N, int num_procs, int rank)
 {
   int i;
-  int final_size = N * numTasks;
-  uint64_t *final;
+  int final_size = N * num_procs;
+  uint32_t *final;
   if (rank == 0) {
-    final = (uint64_t*) malloc(final_size * sizeof(uint64_t));
+    final = (uint32_t*) malloc(final_size * sizeof(uint32_t));
     if (final == NULL) {
       printf("Could not allocate memory for the buffer so as to "
           "receive all the data. The test will not be performed! \n ");
       return;
     }
   }
-  MPI_Gather(array, N, MPI_UNSIGNED_LONG,
-             final, N, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(array, N, MPI_UNSIGNED,
+             final, N, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
   if (rank == 0) {
+    /* printf("\nfinal array:\n"); */
+    /* print_array(final, final_size); */
+    /* printf("\n"); */
+#ifdef FILEOUT
+    output_array(final, final_size, -1);
+#endif
     int fail = 0;
     for (i = 1; i < final_size; ++i) {
       fail = fail || (final[i] < final[i-1]);
@@ -308,4 +325,21 @@ inline void test_validity(uint64_t* array, int N, int numTasks, int rank)
     else printf("PASS\n");
     free(final);
   }
+}
+
+inline void output_array(uint32_t* array, int N, int rank)
+{
+  char filename[10];
+  FILE* f;
+  if (rank == -1) {
+    sprintf(filename, "output.txt");
+  }
+  else {
+    sprintf(filename, "output_%d.txt", rank);
+  }
+  f = fopen(filename, "w");
+  for (int i = 0; i < N; ++i) {
+    fprintf(f, "%u\n", array[i]);
+  }
+  fclose(f);
 }
