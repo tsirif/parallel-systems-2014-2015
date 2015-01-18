@@ -7,13 +7,16 @@ INC = -Idcmt/include
 LIB = -Ldcmt/lib
 CC = icc
 CCFLAGS = $(OPTI) $(WARN) $(STD)
-SSE2FLAGS = -msse2 -DHAVE_SSE2
-WITH_SFMT = -DSFMT
+# SSE2FLAGS = -msse2 -DHAVE_SSE2
+# WITH_SFMT = -DSFMT
 WITH_DCMT = -DDCMT
 WITH_TEST = -DTEST
 WITH_OUTPUT = -DFILEOUT
-WITH_COMPARE = -DCOMPARE
+WITH_COMPARE = -DCOMPARE $(WITH_TEST) $(WITH_DCMT)
 WITH_TIME = -DTIME
+WITH_GRAMA = -DGRAMA
+WITH_ALL_GRAMA = $(WITH_TIME) $(WITH_DCMT) $(WITH_GRAMA)
+WITH_ALL = $(WITH_TIME) $(WITH_DCMT)
 
 
 # .PHONY: clean
@@ -21,10 +24,11 @@ WITH_TIME = -DTIME
 # SFMT.o: SFMT/SFMT.c
 	# $(CC) $(CCFLAGS) $(SSE2FLAGS) -DSFMT_MEXP=607 $(INC) -c $<
 
-# parallel-bitonic: bitonic.c SFMT.o
-	# mpicc $(CCFLAGS) $(WITH_TEST) $(WITH_COMPARE) $(WITH_SFMT) $(WITH_OUTPUT) -o $@ bitonic.c SFMT.o
-parallel-bitonic: bitonic.c
-	mpicc $(CCFLAGS) $(WITH_TEST) $(WITH_COMPARE) $(WITH_DCMT) $(WITH_OUTPUT) -o $@ $< $(INC) $(LIB) -ldcmt
+hybrid-bitonic: bitonic.c grama_quicksort.c
+	mpicc $(CCFLAGS) -openmp $(WITH_ALL_GRAMA) -o $@ bitonic.c grama_quicksort.c $(INC) $(LIB) -ldcmt
 
-clean: parallel-bitonic
+mpi-bitonic: bitonic.c
+	mpicc $(CCFLAGS) -openmp $(WITH_ALL) -o $@ bitonic.c $(INC) $(LIB) -ldcmt
+
+clean:
 	rm -f *.o *~ *.a

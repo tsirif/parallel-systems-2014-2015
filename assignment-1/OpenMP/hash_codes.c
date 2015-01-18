@@ -16,7 +16,7 @@ void quantize(unsigned int *codes, float *X,
     float *low, float step, int N)
 {
 
-  int i = 0, j = 0; 
+  int i = 0, j = 0;
   // Index of element to be accessed.
   int index;
 
@@ -50,10 +50,10 @@ inline float max_range(float *x)
   return max;
 }
 
-void compute_hash_codes(unsigned int *codes, float *X, int N, 
-			int nbins, float *min, 
+void compute_hash_codes(unsigned int *codes, float *X, int N,
+			int nbins, float *min,
 			float *max)
-{  
+{
   float range[DIM];
   float qstep;
   int i = 0;
@@ -61,12 +61,12 @@ void compute_hash_codes(unsigned int *codes, float *X, int N,
   for(i=0; i<DIM; i++)
   {
     range[i] = fabs(max[i] - min[i]);  // The range of the data
-    // Add something small to avoid having points exactly at the boundaries 
+    // Add something small to avoid having points exactly at the boundaries
     range[i] += 0.01*range[i];
   }
-  
-  qstep = max_range(range) / nbins; // The quantization step 
-  
+
+  qstep = max_range(range) / nbins; // The quantization step
+
   quantize(codes, X, min, qstep, N); // Function that does the quantization
 }
 

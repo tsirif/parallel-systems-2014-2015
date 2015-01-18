@@ -1,3 +1,4 @@
 SFMT
 dcmt
-parallel-bitonic
+mpi-bitonic
+hybrid-bitonic

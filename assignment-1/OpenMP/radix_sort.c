@@ -64,11 +64,11 @@ void truncated_radix_sort(unsigned long int *morton_codes,
   level_record[0] = lv; // record the level of the node
 
   if (N <= population_threshold || sft < 0)
-  { 
+  {
     // Base case. The node is a leaf
     // Copy the pernutation vector
     memcpy(permutation_vector, index, N*sizeof(unsigned int));
-    // Copy the Morton codes 
+    // Copy the Morton codes
     memcpy(sorted_morton_codes, morton_codes, N*sizeof(unsigned long int));
     return;
   }
@@ -77,8 +77,8 @@ void truncated_radix_sort(unsigned long int *morton_codes,
     int bin_offsets[MAXBINS] = {0};
     int bin_offsets_cnt[MAXBINS] = {0};
     int i = 0, j = 0;
-    // If we are not deep enough in the recursive algorithm 
-    // use the parallel MSB radix sort. 
+    // If we are not deep enough in the recursive algorithm
+    // use the parallel MSB radix sort.
     // This is done so as not to create a huge number of threads
     // in the deeper levels where the cost of creating them will
     // be greater than the time we save by parallelizing the code.
@@ -88,7 +88,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       #pragma omp parallel private(i, j)
       {
         // Thread local variable used for calculating the number of
-        // elements that are in every bin. 
+        // elements that are in every bin.
         int local_bin_offsets[MAXBINS] = {0};
 
         // Every thread finds the bin where it's corresponding points
@@ -99,7 +99,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
           unsigned int ii = (morton_codes[j]>>sft) & 0x07;
           local_bin_offsets[ii]++;
         }
-        
+
         // Synchronization :
         // In order to avoid race conditions and data loss
         // this region is declared critical and can be executed
@@ -131,13 +131,13 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         sorted_morton_codes[bin_offsets_cnt[ii]] = morton_codes[j];
         bin_offsets_cnt[ii]++;
       }
-     
-      //swap the index pointers  
+
+      //swap the index pointers
       swap(&index, &permutation_vector);
-      //swap the code pointers 
+      //swap the code pointers
       swap_long(&morton_codes, &sorted_morton_codes);
 
-      /** 
+      /**
        * Define a parallel region where we will loop over all the bins
        * and recursively call the radix sort function on each one.
        * Shared Attributes : The input and output arrays , the
@@ -156,7 +156,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
             size,
             population_threshold,
             sft-3, lv+1);
-      } 
+      }
     }  // should we run in parallel?
     // If not execute the recursive call serially.
     else
@@ -167,7 +167,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         bin_offsets[ii]++;
       }
 
-      // scan prefix (must change this code)  
+      // scan prefix (must change this code)
       bin_offsets_cnt[0] = 0;
       for (i = 1; i < MAXBINS; ++i)
       {
@@ -175,7 +175,7 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         bin_offsets[i-1] = bin_offsets_cnt[i];
       }
       bin_offsets[MAXBINS-1] += bin_offsets[MAXBINS-2];
-      
+
       for (j = 0; j < N; ++j)
       {
         unsigned int ii = (morton_codes[j]>>sft) & 0x07;
@@ -183,11 +183,11 @@ void truncated_radix_sort(unsigned long int *morton_codes,
         sorted_morton_codes[bin_offsets_cnt[ii]] = morton_codes[j];
         bin_offsets_cnt[ii]++;
       }
-      
-      //swap the index pointers  
+
+      //swap the index pointers
       swap(&index, &permutation_vector);
 
-      //swap the code pointers 
+      //swap the code pointers
       swap_long(&morton_codes, &sorted_morton_codes);
 
       /* Call the function recursively to split the lower levels */
@@ -195,11 +195,11 @@ void truncated_radix_sort(unsigned long int *morton_codes,
       {
         int offset = (i>0) ? bin_offsets[i-1] : 0;
         int size = bin_offsets[i] - offset;
-        truncated_radix_sort(&morton_codes[offset], 
-             &sorted_morton_codes[offset], 
-             &permutation_vector[offset], 
-             &index[offset], &level_record[offset], 
-             size, 
+        truncated_radix_sort(&morton_codes[offset],
+             &sorted_morton_codes[offset],
+             &permutation_vector[offset],
+             &index[offset], &level_record[offset],
+             size,
              population_threshold,
              sft-3, lv+1);
       }

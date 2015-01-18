@@ -3,21 +3,20 @@
 #include <sys/time.h>
 #include <time.h>
 #include "mpi.h"
+#include "omp.h"
+#include "utils.h"
 
 #ifdef DCMT
 #include "dcmt/include/dc.h"
 #endif
 
 
-inline void swap(uint32_t** x, uint32_t** y);
-inline void print_array(uint32_t* array, int N);
-int cmpfunc(const void* a, const void* b);
 void swap_process_data(uint32_t** array_in, uint32_t** array_out,
                        int N, int fellow, int tag, int dir);
 void compare_and_keep(uint32_t** array_in, uint32_t* array_out,
                       int N, int dir);
 inline void test_validity(uint32_t* array, int N, int numTasks, int rank);
-inline void output_array(uint32_t* array, int N, int rank);
+
 uint32_t* tmp_array = NULL;
 
 int main(int argc, char *argv[])
@@ -26,7 +25,7 @@ int main(int argc, char *argv[])
  *                              Handle Arguments                              *
  ******************************************************************************/
 
-  int num_tasks, N;
+  unsigned int num_tasks, N;
   long int seed;
   if (argc < 3) {
     printf("Invalid command line argument option!\n");
@@ -80,16 +79,21 @@ int main(int argc, char *argv[])
     MPI_Abort(MPI_COMM_WORLD, 3);
   }
 
+#ifdef GRAMA
+  omp_set_nested(1);
+  omp_set_dynamic(0);
+#endif
+
 /******************************************************************************
  *                          Generate Random Dataset                           *
  ******************************************************************************/
 
-  int i;
+  unsigned int i;
 #if defined(DCMT)  // if with dynamic creator of mersenne twisters prg
   if (rank == 0)
     printf("Generating random with DCMT.\n");
   mt_struct* mtst;
-  mtst = get_mt_parameter_id_st(32, 607, rank, 4172);
+  mtst = get_mt_parameter_id_st(32, 607, rank, seed);
   if (mtst == NULL) {
     printf("Error finding an independent set of parameters for dcmt prg.\n");
     printf("Terminating.\n");
@@ -151,7 +155,27 @@ int main(int argc, char *argv[])
 #endif  // TIME or COMPARE
 
   // Initially each processor sort serially its own data.
+  struct timeval stwt_qs, edwt_qs;
+  double seq_time_qs;
+  if (rank == 0) {
+    gettimeofday(&stwt_qs, NULL);
+  }
+#ifdef GRAMA
+  grama_quicksort(in_array, tmp_array, N, 4, 0);
+  if (rank == 0)
+    printf("parallel ");
+#else
   qsort(in_array, N, sizeof(uint32_t), cmpfunc);
+  if (rank == 0)
+    printf("serial ");
+#endif
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == 0) {
+    gettimeofday(&edwt_qs, NULL);
+    seq_time_qs = (double)((edwt_qs.tv_usec - stwt_qs.tv_usec)/1.0e6
+            + edwt_qs.tv_sec - stwt_qs.tv_sec);
+    printf("partial quicksort clock time = %f\n", seq_time_qs);
+  }
 
   /* if (rank == 1) { */
     /* printf("YO!\n"); */
@@ -175,8 +199,8 @@ int main(int argc, char *argv[])
     }
   }
 
-#if defined(TIME) || defined(COMPARE)
   MPI_Barrier(MPI_COMM_WORLD);
+#if defined(TIME) || defined(COMPARE)
   if (rank == 0) {
     gettimeofday(&endwtime, NULL);
     seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
@@ -228,28 +252,6 @@ int main(int argc, char *argv[])
 
   printf("Rank-%d finished successfully!\n", rank);
   return 0;
-}
-
-inline void swap(uint32_t **x, uint32_t **y)
-{
-  uint32_t *tmp;
-  tmp = x[0];
-  x[0] = y[0];
-  y[0] = tmp;
-}
-
-inline void print_array(uint32_t *array, int N)
-{
-  for (int i = 0; i < N; ++i) {
-    printf("%u\n", array[i]);
-  }
-}
-
-int cmpfunc(const void* a, const void* b)
-{
-  if (*(const uint32_t*)a < *(const uint32_t*)b) return -1;
-  if (*(const uint32_t*)a == *(const uint32_t*)b) return 0;
-  return 1;
 }
 
 void swap_process_data(uint32_t** array_in, uint32_t** array_out,
@@ -316,30 +318,13 @@ inline void test_validity(uint32_t* array, int N, int num_procs, int rank)
     output_array(final, final_size, -1);
 #endif
     int fail = 0;
+    #pragma omp parallel for reduction(||: fail)
     for (i = 1; i < final_size; ++i) {
       fail = fail || (final[i] < final[i-1]);
-      if (fail) break;
     }
-    printf("Parallel bitonic sort - validity test: ");
+    printf("parallel bitonic sort - validity test: ");
     if (fail) printf("FAIL\n");
     else printf("PASS\n");
     free(final);
   }
-}
-
-inline void output_array(uint32_t* array, int N, int rank)
-{
-  char filename[10];
-  FILE* f;
-  if (rank == -1) {
-    sprintf(filename, "output.txt");
-  }
-  else {
-    sprintf(filename, "output_%d.txt", rank);
-  }
-  f = fopen(filename, "w");
-  for (int i = 0; i < N; ++i) {
-    fprintf(f, "%u\n", array[i]);
-  }
-  fclose(f);
 }
