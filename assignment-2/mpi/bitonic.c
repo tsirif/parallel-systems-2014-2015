@@ -8,7 +8,15 @@
 
 #ifdef DCMT
 #include "dcmt/include/dc.h"
-#endif
+#endif  // DCMT
+
+#ifdef GRAMA
+#define ARG_SEED 5
+#else
+#define ARG_SEED 4
+#endif  // GRAMA
+
+
 
 
 void swap_process_data(uint32_t** array_in, uint32_t** array_out,
@@ -26,18 +34,38 @@ int main(int argc, char *argv[])
  ******************************************************************************/
 
   unsigned int num_tasks, N;
+  #ifdef GRAMA
+  unsigned int threads_num;
+  #endif  // GRAMA
   long int seed;
   if (argc < 3) {
-    printf("Invalid command line argument option!\n");
-    printf("Usage : %s p q where p is the number of MPI processes to "
-    "be spawned and q the number of elements in each process.\n", argv[0]);
+    printf("Invalid command line argument option!\n"
+           "Usage : %s p q "
+           #ifdef GRAMA
+           "t "
+           #endif  // GRAMA
+           "s, where:\n"
+           "p is the number of MPI processes to be spawned,\n"
+           "q the number of elements in each process,\n"
+           #ifdef GRAMA
+           "t the number of threads to be used in each process [default 4],\n"
+           #endif  // GRAMA
+           "s the seed used in prg algorithm [default 123456].\n", argv[0]);
     exit(1);
   }
   else {
     num_tasks = 1 << atoi(argv[1]);
     N = 1 << atoi(argv[2]);
+    #ifdef GRAMA
     if (argc >= 4) {
-      seed = strtol(argv[3], NULL, 10);
+      threads_num = strtol(argv[3], NULL, 10);
+    }
+    else {
+      threads_num = 4;
+    }
+    #endif  // GRAMA
+    if (argc >= ARG_SEED) {
+      seed = strtol(argv[ARG_SEED - 1], NULL, 10);
     }
     else {
       seed = 123456;
@@ -65,8 +93,8 @@ int main(int argc, char *argv[])
    */
   if (rank == 0 && num_proc != num_tasks) {
       printf("The number of tasks is not equal to the one passed to "
-             "the master process and thus the sorting procedure will stop!\n");
-      printf("Terminating.\n");
+             "the master process and thus the sorting procedure will stop!\n"
+             "Terminating.\n");
       MPI_Abort(MPI_COMM_WORLD, 2);
   }
 
@@ -95,8 +123,8 @@ int main(int argc, char *argv[])
   mt_struct* mtst;
   mtst = get_mt_parameter_id_st(32, 607, rank, seed);
   if (mtst == NULL) {
-    printf("Error finding an independent set of parameters for dcmt prg.\n");
-    printf("Terminating.\n");
+    printf("Error finding an independent set of parameters for dcmt prg.\n"
+           "Terminating.\n");
     MPI_Abort(MPI_COMM_WORLD, 4);
   }
   sgenrand_mt(time(NULL), mtst);
@@ -109,17 +137,12 @@ int main(int argc, char *argv[])
 #else
   if (rank == 0) {
     printf("Generating random by default rand generator.\n");
-    srand(time(NULL));
+    srand(seed + time(NULL));
   }
   for (i = 0; i < N; ++i) {
     in_array[i] = rand();
   }
 #endif  // SCMT or else
-
-  /* if (rank == 1) { */
-    /* printf("YOLO!\n"); */
-    /* print_array(in_array, N); */
-  /* } */
 
 #ifdef COMPARE
   int final_size = N * num_proc;
@@ -155,13 +178,13 @@ int main(int argc, char *argv[])
 #endif  // TIME or COMPARE
 
   // Initially each processor sort serially its own data.
-  struct timeval stwt_qs, edwt_qs;
-  double seq_time_qs;
-  if (rank == 0) {
-    gettimeofday(&stwt_qs, NULL);
-  }
+  /* struct timeval stwt_qs, edwt_qs; */
+  /* double seq_time_qs;              */
+  /* if (rank == 0) {                 */
+  /*   gettimeofday(&stwt_qs, NULL);  */
+  /* }                                */
 #ifdef GRAMA
-  grama_quicksort(in_array, tmp_array, N, 4, 0);
+  grama_quicksort(in_array, tmp_array, N, threads_num, 0);
   if (rank == 0)
     printf("parallel ");
 #else
@@ -169,18 +192,13 @@ int main(int argc, char *argv[])
   if (rank == 0)
     printf("serial ");
 #endif
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (rank == 0) {
-    gettimeofday(&edwt_qs, NULL);
-    seq_time_qs = (double)((edwt_qs.tv_usec - stwt_qs.tv_usec)/1.0e6
-            + edwt_qs.tv_sec - stwt_qs.tv_sec);
-    printf("partial quicksort clock time = %f\n", seq_time_qs);
-  }
-
-  /* if (rank == 1) { */
-    /* printf("YO!\n"); */
-    /* print_array(in_array, N); */
-  /* } */
+  /* MPI_Barrier(MPI_COMM_WORLD);                                       */
+  /* if (rank == 0) {                                                   */
+  /*   gettimeofday(&edwt_qs, NULL);                                    */
+  /*   seq_time_qs = (double)((edwt_qs.tv_usec - stwt_qs.tv_usec)/1.0e6 */
+  /*           + edwt_qs.tv_sec - stwt_qs.tv_sec);                      */
+  /*   printf("partial quicksort clock time = %f\n", seq_time_qs);      */
+  /* }                                                                  */
 
   int k, j, dir;
 
@@ -208,11 +226,6 @@ int main(int argc, char *argv[])
     printf("parallel bitonic clock time = %f\n", seq_time);
   }
 #endif  // TIME or COMPARE
-
-  /* if (rank == 1) { */
-    /* printf("YOLOR!\n"); */
-    /* print_array(in_array, N); */
-  /* } */
 
 #if defined(FILEOUT) && !defined(TEST)
   output_array(in_array, N, rank);
@@ -318,7 +331,7 @@ inline void test_validity(uint32_t* array, int N, int num_procs, int rank)
     output_array(final, final_size, -1);
 #endif
     int fail = 0;
-    #pragma omp parallel for reduction(||: fail)
+    /* #pragma omp parallel for reduction(||: fail) */
     for (i = 1; i < final_size; ++i) {
       fail = fail || (final[i] < final[i-1]);
     }
