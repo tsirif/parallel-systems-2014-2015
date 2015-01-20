@@ -1,3 +1,12 @@
-gpuocelot
+CUDA
+https://developer.nvidia.com/cuda-downloads
 
-https://code.google.com/p/gpuocelot/
+about Conway's Game of Life
+http://www.ibiblio.org/lifepatterns/october1970.html
+https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life
+
+game of life using CUDA:
+http://www.marekfiser.com/Projects/Conways-Game-of-Life-on-GPU-using-CUDA
+
+
+
