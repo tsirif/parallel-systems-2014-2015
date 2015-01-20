@@ -60,7 +60,19 @@ inline int count_neighbors(size_t left, size_t owni, size_t right, size_t up, si
     table[POS(right, down)] ; 
 }
 
-//TODO: IDEA: precalculate y0,1,2 and x0,2
+size_t* prev_of;
+size_t* next_of;
+
+void pre_calc(){
+    prev_of = malloc(N * sizeof(size_t));
+    next_of = malloc(N * sizeof(size_t));
+
+    prev_of[0] = N-1;
+    next_of[N-1] = 0;
+    for (size_t i=1; i<N; ++i) prev_of[i] = i-1;
+    for (size_t i=0; i<N-1; ++i) next_of[i] = i+1;
+}
+
 void serial_compute()
 {
     size_t i,j,left,right,up,down;
@@ -68,13 +80,15 @@ void serial_compute()
     #pragma omp parallel for private(left, right, up, down, alive_neighbors, j)
     for (i = 0; i < N; ++i) {
 
-        left = (i != 0) ? i - 1 : N - 1;
-        right = (i != N - 1) ? i + 1 : 0;
+        left = prev_of[i];
+        right = next_of[i];
 
         for (j = 0; j < N; ++j) {
 
-            up = (j != 0) ? j - 1 : N - 1;
-            down = (j != N - 1) ? j + 1 : 0;
+            up = prev_of[j];
+            down = next_of[j];
+
+            //~ printf("(i=%lu, j=%lu) left=%lu right=%lu up=%lu down=%lu\n", i, j, left, right, up, down);
 
             alive_neighbors = count_neighbors(left, i, right, up, j, down);
             help_table[POS(i, j)] = (alive_neighbors == 3) || (alive_neighbors == 2 && table[POS(i, j)]) ? 1 : 0;
@@ -114,8 +128,10 @@ int main(int argc, char **argv)
     read_from_file(table, filename, N);
     printf("Finished reading table\n");
 
+    //~ print_table(table);
     struct timeval startwtime, endwtime;
-    gettimeofday (&startwtime, NULL); 
+    gettimeofday (&startwtime, NULL);
+    pre_calc();
     for (int i = 0; i < N_RUNS; ++i) {
         memcpy(help_table, table, total_size);
         serial_compute();
