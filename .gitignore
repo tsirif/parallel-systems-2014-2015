@@ -30,6 +30,7 @@
 
 # Compressed Files
 *.tar.*
+*.tar
 
 # Text/Log Files
 *.txt
