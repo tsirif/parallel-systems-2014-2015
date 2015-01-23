@@ -17,8 +17,6 @@
 #endif  // GRAMA
 
 
-
-
 void swap_process_data(uint32_t** array_in, uint32_t** array_out,
                        int N, int fellow, int tag, int dir);
 void compare_and_keep(uint32_t** array_in, uint32_t* array_out,
@@ -185,12 +183,8 @@ int main(int argc, char *argv[])
   /* }                                */
 #ifdef GRAMA
   grama_quicksort(in_array, tmp_array, N, threads_num, 0);
-  if (rank == 0)
-    printf("parallel ");
 #else
   qsort(in_array, N, sizeof(uint32_t), cmpfunc);
-  if (rank == 0)
-    printf("serial ");
 #endif
   /* MPI_Barrier(MPI_COMM_WORLD);                                       */
   /* if (rank == 0) {                                                   */
@@ -223,7 +217,12 @@ int main(int argc, char *argv[])
     gettimeofday(&endwtime, NULL);
     seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
             + endwtime.tv_sec - startwtime.tv_sec);
-    printf("parallel bitonic clock time = %f\n", seq_time);
+#ifdef GRAMA
+    printf("hybrid");
+#else
+    printf("mpi");
+#endif  // GRAMA
+    printf(" bitonic clock time = %f\n", seq_time);
   }
 #endif  // TIME or COMPARE
 
@@ -263,7 +262,6 @@ int main(int argc, char *argv[])
   }
 #endif  // COMPARE
 
-  printf("Rank-%d finished successfully!\n", rank);
   return 0;
 }
 
@@ -329,7 +327,7 @@ inline void test_validity(uint32_t* array, int N, int num_procs, int rank)
     /* printf("\n"); */
 #ifdef FILEOUT
     output_array(final, final_size, -1);
-#endif
+#endif  // FILEOUT
     int fail = 0;
     /* #pragma omp parallel for reduction(||: fail) */
     for (i = 1; i < final_size; ++i) {

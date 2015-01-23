@@ -12,11 +12,11 @@ CCFLAGS = $(OPTI) $(WARN) $(STD)
 WITH_DCMT = -DDCMT
 WITH_TEST = -DTEST
 WITH_OUTPUT = -DFILEOUT
-WITH_COMPARE = -DCOMPARE $(WITH_TEST) $(WITH_DCMT)
+WITH_COMPARE = -DCOMPARE
 WITH_TIME = -DTIME
 WITH_GRAMA = -DGRAMA
-WITH_ALL_GRAMA = $(WITH_TIME) $(WITH_DCMT) $(WITH_GRAMA)
-WITH_ALL = $(WITH_TIME) $(WITH_DCMT)
+WITH_ALL = $(WITH_TIME) $(WITH_DCMT) $(WITH_COMPARE)
+WITH_ALL_GRAMA = $(WITH_ALL) $(WITH_GRAMA)
 
 
 # .PHONY: clean
@@ -25,10 +25,10 @@ WITH_ALL = $(WITH_TIME) $(WITH_DCMT)
 	# $(CC) $(CCFLAGS) $(SSE2FLAGS) -DSFMT_MEXP=607 $(INC) -c $<
 
 hybrid-bitonic: bitonic.c grama_quicksort.c
-	mpicc $(CCFLAGS) -openmp $(WITH_ALL_GRAMA) $(WITH_TEST) -o $@ bitonic.c grama_quicksort.c $(INC) $(LIB) -ldcmt
+	mpicc $(CCFLAGS) -openmp $(WITH_ALL_GRAMA) $(WITH_TEST) -o ../$@ bitonic.c grama_quicksort.c $(INC) $(LIB) -ldcmt
 
 mpi-bitonic: bitonic.c
-	mpicc $(CCFLAGS) -openmp $(WITH_ALL) $(WITH_TEST) -o $@ bitonic.c $(INC) $(LIB) -ldcmt
+	mpicc $(CCFLAGS) -openmp $(WITH_ALL) $(WITH_TEST) -o ../$@ bitonic.c $(INC) $(LIB) -ldcmt
 
 clean:
 	rm -f *.o *~ *.a
