@@ -45,6 +45,7 @@ const int DESCENDING = 0;
 void init(void);
 void print(void);
 void sort(void);
+int cmpfunc(const void* a, const void* b);
 void test(void);
 inline void exchange(int i, int j);
 void compare(int i, int j, int dir);
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
   seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
 		      + endwtime.tv_sec - startwtime.tv_sec);
 
-  printf("Imperative wall clock time = %f\n", seq_time);
+  printf("imperative wall clock time = %f\n", seq_time);
 
   test();
 
@@ -86,14 +87,32 @@ int main(int argc, char **argv) {
   seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
 		      + endwtime.tv_sec - startwtime.tv_sec);
 
-  printf("Recursive wall clock time = %f\n", seq_time);
+  printf("recursive wall clock time = %f\n", seq_time);
 
+  test();
+
+  init();
+  gettimeofday (&startwtime, NULL);
+  qsort(a, N, sizeof(int), cmpfunc);
+  gettimeofday (&endwtime, NULL);
+  seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
+		      + endwtime.tv_sec - startwtime.tv_sec);
+
+  printf("serial quicksort clock time = %f\n", seq_time);
+  
   test();
 
   // print();
 }
 
 /** -------------- SUB-PROCEDURES  ----------------- **/
+
+int cmpfunc(const void* a, const void* b)
+{
+  if (*(const int*)a < *(const int*)b) return -1;
+  if (*(const int*)a == *(const int*)b) return 0;
+  return 1;
+}
 
 /** procedure test() : verify sort results **/
 void test() {
