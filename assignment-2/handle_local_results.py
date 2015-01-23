@@ -68,24 +68,20 @@ class GraphMaker(object):
         self.axes.set_title(title)
         self.axes.set_ylabel("wtime over quicksort's wtime")
         self.axes.set_xlabel(xlabel)
-        self.axes.set_ylim([0, 1.25])
+        if bounds:
+            self.axes.set_ylim([0, 1.25])
         self.axes.autoscale_view()
         self.axes.grid(True)
-        # self.axes.xaxis.set_major_locator(matplotlib.dates.MinuteLocator())
-        # self.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%M:%S'))
-        # self.axes.xaxis.set_minor_locator(matplotlib.dates.SecondLocator())
 
     def add_plot(self, xdata, ydata, data_fmt, data_label):
         plt.plot(xdata, ydata, data_fmt, label=data_label)
 
     def show_figure(self):
         self.axes.legend()
-        # self.fig.autofmt_xdate()
         plt.show()
 
     def save_figure(self, filename):
         self.axes.legend()
-        # self.fig.autofmt_xdate()
         plt.savefig(filename, bbox_inches='tight')
 
 def ranks_over_constq():
@@ -121,7 +117,7 @@ def ranks_over_constq():
         mpibit.add_plot(q, ydata, 'o-', "#procs:"+str(2**nranks))
     hybbit.save_figure("hybrid-processes-16threads.png")
 
-    # hybrid-bitonic
+    # serial-bitonic
     serialbit = GraphMaker("Perfomance of serial bitonic", "total problem size (log2)", bounds=False)
     ydata = [results[('serial-bitonic', nq)] for nq in q]
     serialbit.add_plot(q, ydata, 'o-', "1 process")

@@ -80,24 +80,20 @@ class GraphMaker(object):
         self.axes.set_title(title)
         self.axes.set_ylabel("wtime over quicksort's wtime")
         self.axes.set_xlabel(xlabel)
-        self.axes.set_ylim([0, 1.25])
+        if bounds:
+            self.axes.set_ylim([0, 1.25])
         self.axes.autoscale_view()
         self.axes.grid(True)
-        # self.axes.xaxis.set_major_locator(matplotlib.dates.MinuteLocator())
-        # self.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%M:%S'))
-        # self.axes.xaxis.set_minor_locator(matplotlib.dates.SecondLocator())
 
     def add_plot(self, xdata, ydata, data_fmt, data_label):
         plt.plot(xdata, ydata, data_fmt, label=data_label)
 
     def show_figure(self):
         self.axes.legend()
-        # self.fig.autofmt_xdate()
         plt.show()
 
     def save_figure(self, filename):
         self.axes.legend()
-        # self.fig.autofmt_xdate()
         plt.savefig(filename, bbox_inches='tight')
 
 def q_over_constppn():
@@ -178,6 +174,12 @@ def compare_over_const():
     ydata = [results[('hybrid-bitonic', 1, 5, 8, nq)] for nq in q]
     comprank.add_plot(q, ydata, 'o-', "hybrid 2node/32procs/8threads")
     comprank.save_figure("compare-rank-21q.png")
+
+    # serial-bitonic
+    serialbit = GraphMaker("Perfomance of serial bitonic", "total problem size (log2)", bounds=False)
+    ydata = [results[('serial-bitonic', nq)] for nq in q]
+    serialbit.add_plot(q, ydata, 'o-', "1 process")
+    serialbit.save_figure("serial-quantity.png")
 
 if __name__ == '__main__':
     handle_results()
