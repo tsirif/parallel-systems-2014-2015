@@ -6,12 +6,13 @@ from collections import defaultdict
 from itertools import product
 import numpy as np
 import matplotlib.pyplot as plt
+import pprint as pp
 
 results = defaultdict(float)
 executable = ["mpi-bitonic", "hybrid-bitonic", "serial-bitonic"]
-nodes = range(3)
-ranks = range(1, 5)
-threads = [2, 4, 8, 16]
+nodes = range(2)
+ranks = range(1, 6)
+threads = [2, 4, 8]
 q = range(16, 28)
 
 
@@ -29,9 +30,9 @@ def handle_results():
                     first = line.split()[0]
                     last = line.split()[-1]
                     if first == "mpi":
-                        results[('mpi-bitonic', nnodes, nranks, nq)] = float(last)
+                        results[('mpi-bitonic', nnodes, nnodes+nranks, nq)] = float(last)
                     if first == "serial":
-                        results[('mpi-bitonic', nnodes, nranks, nq)] /= float(last)
+                        results[('mpi-bitonic', nnodes, nnodes+nranks, nq)] /= float(last)
                         break
             print filename
         except IOError as e:
@@ -49,9 +50,9 @@ def handle_results():
                     first = line.split()[0]
                     last = line.split()[-1]
                     if first == "hybrid":
-                        results[('hybrid-bitonic', nnodes, nranks, nthread, nq)] = float(last)
+                        results[('hybrid-bitonic', nnodes, nnodes+nranks, nthread, nq)] = float(last)
                     if first == "serial":
-                        results[('hybrid-bitonic', nnodes, nranks, nthread, nq)] /= float(last)
+                        results[('hybrid-bitonic', nnodes, nnodes+nranks, nthread, nq)] /= float(last)
                         break
             print filename
         except IOError as e:
@@ -70,7 +71,7 @@ def handle_results():
                 if first == "serial":
                     results[('serial-bitonic', nq)] /= float(last)
                     break
-    print results
+    pp.pprint(dict(results))
 
 class GraphMaker(object):
     def __init__(self, title, xlabel, bounds=True):
@@ -166,14 +167,18 @@ def q_over_constranks():
 def compare_over_const():
     comprank = GraphMaker("Compare mpi with mpi/openmp bitonic", "#problem size (log2)")
     ydata = [results[('mpi-bitonic', 0, 4, nq)] for nq in q]
+    print ydata
     comprank.add_plot(q, ydata, 'x-', "mpi 1node/16procs")
     ydata = [results[('mpi-bitonic', 1, 5, nq)] for nq in q]
+    print ydata
     comprank.add_plot(q, ydata, 'x-', "mpi 2nodes/32procs")
     ydata = [results[('hybrid-bitonic', 0, 4, 8, nq)] for nq in q]
+    print ydata
     comprank.add_plot(q, ydata, 'o-', "hybrid 1node/16procs/8threads")
     ydata = [results[('hybrid-bitonic', 1, 5, 8, nq)] for nq in q]
+    print ydata
     comprank.add_plot(q, ydata, 'o-', "hybrid 2node/32procs/8threads")
-    comprank.save_figure("compare-rank-21q.png")
+    comprank.save_figure("compare-optimized.png")
 
     # serial-bitonic
     serialbit = GraphMaker("Perfomance of serial bitonic", "total problem size (log2)", bounds=False)
