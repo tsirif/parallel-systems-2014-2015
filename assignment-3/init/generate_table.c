@@ -11,7 +11,7 @@ void generate_table(int *X, int N){
 
   for(int i=0; i<N; i++){
     for(int j=0; j<N; j++){
-      X[i*N + j] = ( (float)rand() / (float)RAND_MAX ) < THRESHOLD; 
+      X[i*N + j] = ( (float)rand() / (float)RAND_MAX ) < THRESHOLD;
       counter += X[i*N + j];
     }
   }
@@ -20,7 +20,6 @@ void generate_table(int *X, int N){
   printf("Number of non zerow elements: %d\n", counter);
   printf("Perncent: %f\n", (float)counter / (float)(N*N));
 }
-
 
 void save_table(int *X, int N){
 
@@ -46,7 +45,7 @@ int main(int argc, char **argv){
     printf("usage: %s [dimension]\n", argv[0]);
     exit(1);
   }
-  
+
   int N = atoi(argv[1]);
 
   printf("Generating an %d x %d table\n", N, N);
@@ -58,7 +57,7 @@ int main(int argc, char **argv){
   save_table(table, N);
 
   free(table);
-  
+
   return 0;
 
 }

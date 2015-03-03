@@ -23,7 +23,7 @@ int count_neighbors(size_t x0, size_t x1, size_t x2, size_t y0, size_t y1, size_
  * help_table is used for the calculation of a new generation */
 int *table;
 int *help_table;
-size_t N;
+int N;
 
 /* swap 2 int* pointers */
 //TODO: move somewhere better, make it a #define(?)
@@ -41,41 +41,56 @@ void read_from_file(int *X, char *filename, int N)
 {
     FILE *fp = fopen(filename, "r+");
     int size = fread(X, sizeof(int), N * N, fp);
+#ifndef TEST
     printf("total elements: %d\n", size);
+#endif  // TEST
     fclose(fp);
+}
+
+void save_table(int *X, int N)
+{
+  FILE *fp;
+  char filename[20];
+  sprintf(filename, "results.bin");
+#ifndef TEST
+  printf("Saving table in file %s\n", filename);
+#endif  // TEST
+  fp = fopen(filename, "w+");
+  fwrite(X, sizeof(int), N*N, fp);
+  fclose(fp);
 }
 
 #define POS(i, j) (i*N + j)
 
 inline int count_neighbors(size_t left, size_t owni, size_t right, size_t up, size_t ownj, size_t down)
 {
-    return 
-    table[POS(left , up  )] + 
-    table[POS(left , ownj)] + 
-    table[POS(left , down)] + 
-    table[POS(owni , up  )] + 
-    table[POS(owni , down)] + 
-    table[POS(right, up  )] + 
-    table[POS(right, ownj)] + 
-    table[POS(right, down)] ; 
+    return
+    table[POS(left , up  )] +
+    table[POS(left , ownj)] +
+    table[POS(left , down)] +
+    table[POS(owni , up  )] +
+    table[POS(owni , down)] +
+    table[POS(right, up  )] +
+    table[POS(right, ownj)] +
+    table[POS(right, down)] ;
 }
 
-size_t* prev_of;
-size_t* next_of;
+int* prev_of;
+int* next_of;
 
 void pre_calc(){
-    prev_of = malloc(N * sizeof(size_t));
-    next_of = malloc(N * sizeof(size_t));
+    prev_of = (int*) malloc(N * sizeof(size_t));
+    next_of = (int*) malloc(N * sizeof(size_t));
 
     prev_of[0] = N-1;
     next_of[N-1] = 0;
-    for (size_t i=1; i<N; ++i) prev_of[i] = i-1;
-    for (size_t i=0; i<N-1; ++i) next_of[i] = i+1;
+    for (int i=1; i<N; ++i) prev_of[i] = i-1;
+    for (int i=0; i<N-1; ++i) next_of[i] = i+1;
 }
 
 void serial_compute()
 {
-    size_t i,j,left,right,up,down;
+    int i,j,left,right,up,down;
     unsigned int alive_neighbors;
     #pragma omp parallel for private(left, right, up, down, alive_neighbors, j)
     for (i = 0; i < N; ++i) {
@@ -99,8 +114,8 @@ void serial_compute()
 
 void print_table(int* table)
 {
-    for (size_t i = 0; i < N; ++i) {
-        for(size_t j = 0; j < N; ++j) {
+    for (int i = 0; i < N; ++i) {
+        for(int j = 0; j < N; ++j) {
             printf("%s%d "ANSI_COLOR_RESET, table[i * N + j] ? ANSI_COLOR_BLUE : ANSI_COLOR_RED, table[i * N + j]);
         }
         printf("\n");
@@ -108,39 +123,48 @@ void print_table(int* table)
     printf("\n");
 }
 
-#define N_RUNS 10
-
 int main(int argc, char **argv)
 {
-
-    if (argc != 3) {
+    if (argc < 3) {
         printf("usage: %s FILE dimension\n", argv[0]);
         exit(1);
     }
 
-    char *filename = argv[1];
+    int N_RUNS = 10;
+    char* filename = argv[1];
     N = atoi(argv[2]);
-    size_t total_size = N * N;
+    int total_size = N * N;
+    if (argc == 4) {
+      N_RUNS = atoi(argv[3]);
+    }
 
-    printf("Reading %lux%lu table from file %s\n", N, N, filename);
-    table = malloc(total_size * sizeof(int));
-    help_table = malloc(total_size * sizeof(int));
+#ifndef TEST
+    printf("Reading %dx%d table from file %s\n", N, N, filename);
+#endif  // TEST
+    table = (int*) malloc(total_size * sizeof(int));
+    help_table = (int*) malloc(total_size * sizeof(int));
     read_from_file(table, filename, N);
+#ifndef TEST
     printf("Finished reading table\n");
+#endif  // TEST
 
-    //~ print_table(table);
+    print_table(table);
     struct timeval startwtime, endwtime;
     gettimeofday (&startwtime, NULL);
     pre_calc();
     for (int i = 0; i < N_RUNS; ++i) {
-        memcpy(help_table, table, total_size);
         serial_compute();
-        //~ print_table(table);
+        memcpy(help_table, table, total_size);
+#ifdef PRINT
+        print_table(table);
+#endif  // PRINT
     }
     gettimeofday (&endwtime, NULL);
     double hash_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
                 /1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     printf("clock: %fs\n", hash_time);
+
+    save_table(table, N);
 
     free(table);
     free(help_table);
