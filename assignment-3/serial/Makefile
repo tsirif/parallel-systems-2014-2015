@@ -10,14 +10,14 @@ TARGET = omp
 GEN = gen
 
 all:
-	$(CC) $(CCFLAGS) -DPRINT -fopenmp -o $(TARGET).out omp.c
+	$(CC) $(CCFLAGS) -fopenmp -o $(TARGET).out omp.c
 	$(CC) $(CCFLAGS) -o $(GEN).out ../init/generate_table.c
 test: test.c omp.c
 	if [ -a $(TARGET).out ] ; \
 	then \
 		rm $(TARGET).out ; \
 	fi;
-	$(CC) $(CCFLAGS) -DTEST -fopenmp -o $(TARGET).out omp.c
+	$(CC) $(CCFLAGS) -DTEST -DPRINT -fopenmp -o $(TARGET).out omp.c
 	# $(CC) $(CCFLAGS) -DTEST -DPRINT -fopenmp -o $(TARGET).out omp.c
 	$(CC) $(CCFLAGS) -o $@ test.c
 	./$@
