@@ -19,8 +19,7 @@ test: test.c omp.c
 	fi;
 	$(CC) $(CCFLAGS) -DTEST -DPRINT -fopenmp -o $(TARGET).out omp.c
 	# $(CC) $(CCFLAGS) -DTEST -DPRINT -fopenmp -o $(TARGET).out omp.c
-	$(CC) $(CCFLAGS) -o $@ test.c
-	./$@
+	$(CC) $(CCFLAGS) -o $@.out test.c
 run:
 	./$(GEN).out $(N)
 	./$(TARGET).out table$(N)x$(N).bin $(N) $(T)
