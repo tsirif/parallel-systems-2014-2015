@@ -49,15 +49,15 @@ void read_from_file(int *X, char *filename, int N)
 
 void save_table(int *X, int N)
 {
-  FILE *fp;
-  char filename[20];
-  sprintf(filename, "results.bin");
+    FILE *fp;
+    char filename[20];
+    sprintf(filename, "results.bin");
 #ifndef TEST
-  printf("Saving table in file %s\n", filename);
+    printf("Saving table in file %s\n", filename);
 #endif  // TEST
-  fp = fopen(filename, "w+");
-  fwrite(X, sizeof(int), N*N, fp);
-  fclose(fp);
+    fp = fopen(filename, "w+");
+    fwrite(X, sizeof(int), N * N, fp);
+    fclose(fp);
 }
 
 #define POS(i, j) (i*N + j)
@@ -65,32 +65,33 @@ void save_table(int *X, int N)
 inline int count_neighbors(size_t left, size_t owni, size_t right, size_t up, size_t ownj, size_t down)
 {
     return
-    table[POS(left , up  )] +
-    table[POS(left , ownj)] +
-    table[POS(left , down)] +
-    table[POS(owni , up  )] +
-    table[POS(owni , down)] +
-    table[POS(right, up  )] +
-    table[POS(right, ownj)] +
-    table[POS(right, down)] ;
+        table[POS(left , up  )] +
+        table[POS(left , ownj)] +
+        table[POS(left , down)] +
+        table[POS(owni , up  )] +
+        table[POS(owni , down)] +
+        table[POS(right, up  )] +
+        table[POS(right, ownj)] +
+        table[POS(right, down)] ;
 }
 
 int* prev_of;
 int* next_of;
 
-void pre_calc(){
+void pre_calc()
+{
     prev_of = (int*) malloc(N * sizeof(size_t));
     next_of = (int*) malloc(N * sizeof(size_t));
 
-    prev_of[0] = N-1;
-    next_of[N-1] = 0;
-    for (int i=1; i<N; ++i) prev_of[i] = i-1;
-    for (int i=0; i<N-1; ++i) next_of[i] = i+1;
+    prev_of[0] = N - 1;
+    next_of[N - 1] = 0;
+    for (int i = 1; i < N; ++i) prev_of[i] = i - 1;
+    for (int i = 0; i < N - 1; ++i) next_of[i] = i + 1;
 }
 
 void serial_compute()
 {
-    int i,j,left,right,up,down;
+    int i, j, left, right, up, down;
     unsigned int alive_neighbors;
     #pragma omp parallel for private(left, right, up, down, alive_neighbors, j)
     for (i = 0; i < N; ++i) {
@@ -135,34 +136,38 @@ int main(int argc, char **argv)
     N = atoi(argv[2]);
     int total_size = N * N;
     if (argc == 4) {
-      N_RUNS = atoi(argv[3]);
+        N_RUNS = atoi(argv[3]);
     }
 
 #ifndef TEST
     printf("Reading %dx%d table from file %s\n", N, N, filename);
 #endif  // TEST
+
     table = (int*) malloc(total_size * sizeof(int));
     help_table = (int*) malloc(total_size * sizeof(int));
     read_from_file(table, filename, N);
+    
 #ifndef TEST
     printf("Finished reading table\n");
 #endif  // TEST
+
 #ifdef PRINT
     print_table(table);
 #endif  // PRINT
+
     struct timeval startwtime, endwtime;
     gettimeofday (&startwtime, NULL);
     pre_calc();
     for (int i = 0; i < N_RUNS; ++i) {
         serial_compute();
-        memcpy(help_table, table, total_size);
+        
 #ifdef PRINT
         print_table(table);
 #endif  // PRINT
     }
     gettimeofday (&endwtime, NULL);
     double hash_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-                /1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+                                / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     printf("clock: %fs\n", hash_time);
 
     save_table(table, N);
