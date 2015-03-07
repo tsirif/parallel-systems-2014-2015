@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <assert.h>
 //TODO: debloat
 
 void swap(int** a, int** b);
@@ -35,12 +36,9 @@ void swap(int** a, int** b);
  * help_table is used for the calculation of a new generation */
 int *table;
 int *help_table;
-int N;
+unsigned int N;
 
 #define DFL_RUNS 10
-
-#define BLOCK_SIZE 4
-#define N_BLOCKS N/BLOCK_SIZE + N%BLOCK_SIZE
 
 /* swap 2 int* pointers */
 //TODO: move somewhere better, make it a #define(?)
@@ -94,42 +92,45 @@ void pre_calc()
     for (int i = 0; i < N - 1; ++i) next_of[i] = i + 1;
 }
 
-__global__ void cuda_compute(int *d_help, const int *d_table, const int *prev, const int *next, const int Nc)
+int find_thread_count(const int dim)
 {
-    //const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    //const int j = blockIdx.y * blockDim.y + threadIdx.y;
-	const int i = blockIdx.x;
-	const int j = blockIdx.y;
+    if (dim == 0) return 0;
+    int result = 2;
+    while (dim % result == 0) result *= 2;
+    return result >> 1;
+}
 
-    if (i<Nc && j<Nc)
-    {
-        const int left = prev[i];
-        const int right = next[i];
-    
-        const int up = prev[j];
-        const int down = next[j];
-    
-        const int alive_neighbors = d_table[cPOS(left , up  )] +
-                                    d_table[cPOS(left , j   )] +
-                                    d_table[cPOS(left , down)] +
-                                    d_table[cPOS(i    , up  )] +
-                                    d_table[cPOS(i    , down)] +
-                                    d_table[cPOS(right, up  )] +
-                                    d_table[cPOS(right, j   )] +
-                                    d_table[cPOS(right, down)] ;
-        const int idx = cPOS(i, j);
-        if (idx < Nc * Nc)
-            d_help[idx] = (alive_neighbors == 3) || (alive_neighbors == 2 && d_table[idx]) ? 1 : 0;
-    }
+__global__ void cuda_compute(int *d_help, const int *d_table, const int *prev, const int *next, unsigned int Nc)
+{
+    const unsigned int cell_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int i = cell_id / Nc;
+    const unsigned int j = cell_id % Nc;
+
+    const int left = prev[i];
+    const int right = next[i];
+
+    const int up = prev[j];
+    const int down = next[j];
+
+    const int alive_neighbors = d_table[cPOS(left , up  )] +
+                                d_table[cPOS(left , j   )] +
+                                d_table[cPOS(left , down)] +
+                                d_table[cPOS(i    , up  )] +
+                                d_table[cPOS(i    , down)] +
+                                d_table[cPOS(right, up  )] +
+                                d_table[cPOS(right, j   )] +
+                                d_table[cPOS(right, down)] ;
+    if (cell_id < Nc * Nc)
+        d_help[cell_id] = (alive_neighbors == 3) || (alive_neighbors == 2 && d_table[cell_id]) ? 1 : 0;
 }
 
 __global__ void cuda_copy(const int *d_help, int *d_table, const int tot, const int Nc)
 {
-    //const int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	const int idx = blockIdx.x * Nc + blockIdx.y;
+    //const int cell_id = blockDim.x * blockIdx.x + threadIdx.x;
+    const int cell_id = blockIdx.x * Nc + blockIdx.y;
 
-    if (idx < tot)
-        d_table[idx] = d_help[idx];
+    if (cell_id < tot)
+        d_table[cell_id] = d_help[cell_id];
 
 }
 
@@ -174,9 +175,10 @@ int main(int argc, char **argv)
 
     int *d_help, *d_table, *prev, *next;
 
-    dim3 threadsPerBlock(N,N);
-    dim3 numBlocks(1, 1);
-    dim3 grid(N,N);
+    dim3 grid(N, N);
+    const int thread_count = find_thread_count(total_size);
+    const int blocks_count = total_size / thread_count;
+
 
     cudaMalloc((void **) &d_help,  mem_size);
     cudaCheckErrors("malloc fail");
@@ -208,10 +210,10 @@ int main(int argc, char **argv)
     cudaCheckErrors("memcpy fail");
 
     for (int i = 0; i < N_RUNS; ++i) {
-        cuda_compute <<< grid, 1 >>>(d_help, d_table, prev, next, N);
+        cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, prev, next, N);
         cudaCheckErrors("compute fail");
         cuda_copy <<< grid, 1>>> (d_help, d_table, total_size, N);
-        cudaCheckErrors("memcpy fail");
+        cudaCheckErrors("copy fail");
         cudaMemcpy(table, d_table, mem_size, cudaMemcpyDeviceToHost);
         cudaCheckErrors("memcpy fail");
         print_table(table);
