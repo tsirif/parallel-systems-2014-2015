@@ -147,8 +147,9 @@ int main(int argc, char **argv)
 #ifndef TEST
     printf("Finished reading table\n");
 #endif  // TEST
-
+#ifdef PRINT
     print_table(table);
+#endif  // PRINT
     struct timeval startwtime, endwtime;
     gettimeofday (&startwtime, NULL);
     pre_calc();
