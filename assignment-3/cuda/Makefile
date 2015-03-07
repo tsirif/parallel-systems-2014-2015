@@ -12,10 +12,10 @@ TARGET = cuda
 GEN = gen
 
 all:
-	$(NVCC) $(NVCCFLAGS) -DPRINT -o $(TARGET).out cuda.cu
+	$(NVCC) $(NVCCFLAGS) -o $(TARGET).out cuda.cu
 	$(CC) $(CCFLAGS) -o $(GEN).out ../init/generate_table.c
 test: test.c cuda.cu
-	$(NVCC) $(NVCCFLAGS) -DTEST -o $(TARGET).out cuda.cu
+	$(NVCC) $(NVCCFLAGS) -DPRINT -DTEST -o $(TARGET).out cuda.cu
 	$(CC) $(CCFLAGS) -o $@ test.c
 run:
 	./$(GEN).out $(N)
