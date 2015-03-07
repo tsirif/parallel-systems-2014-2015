@@ -14,9 +14,6 @@ GEN = gen
 all:
 	$(NVCC) $(NVCCFLAGS) -o $(TARGET).out cuda.cu
 	$(CC) $(CCFLAGS) -o $(GEN).out ../init/generate_table.c
-test: test.c cuda.cu
-	$(NVCC) $(NVCCFLAGS) -DPRINT -DTEST -o $(TARGET).out cuda.cu
-	$(CC) $(CCFLAGS) -o $@ test.c
 run:
 	./$(GEN).out $(N)
 	./$(TARGET).out table$(N)x$(N).bin $(N) $(T)
