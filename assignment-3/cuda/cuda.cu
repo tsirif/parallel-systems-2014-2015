@@ -124,16 +124,6 @@ __global__ void cuda_compute(int *d_help, const int *d_table, const int *prev, c
         d_help[cell_id] = (alive_neighbors == 3) || (alive_neighbors == 2 && d_table[cell_id]) ? 1 : 0;
 }
 
-__global__ void cuda_copy(const int *d_help, int *d_table, const int tot, const int Nc)
-{
-    //const int cell_id = blockDim.x * blockIdx.x + threadIdx.x;
-    const int cell_id = blockIdx.x * Nc + blockIdx.y;
-
-    if (cell_id < tot)
-        d_table[cell_id] = d_help[cell_id];
-
-}
-
 void print_table(int* A)
 {
     for (int i = 0; i < N; ++i) {
@@ -162,16 +152,15 @@ int main(int argc, char **argv)
         N_RUNS = atoi(argv[3]);
     }
 
-#ifdef TEST
     printf("Reading %dx%d table from file %s\n", N, N, filename);
-#endif  // TEST
     table = (int*) malloc(mem_size);
     help_table = (int*) malloc(mem_size);
     read_from_file(table, filename, N);
-#ifdef TEST
     printf("Finished reading table\n");
+
+#ifdef PRINT
     print_table(table);
-#endif  // TEST
+#endif
 
     int *d_help, *d_table, *prev, *next;
 
@@ -179,6 +168,7 @@ int main(int argc, char **argv)
     const int thread_count = find_thread_count(total_size);
     const int blocks_count = total_size / thread_count;
 
+    pre_calc();
 
     cudaMalloc((void **) &d_help,  mem_size);
     cudaCheckErrors("malloc fail");
@@ -192,11 +182,6 @@ int main(int argc, char **argv)
     cudaMalloc((void **) &next, row_mem_size);
     cudaCheckErrors("malloc fail");
 
-    struct timeval startwtime, endwtime;
-    gettimeofday (&startwtime, NULL);
-
-    pre_calc();
-
     cudaMemcpy(d_help, help_table, mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("memcpy fail");
 
@@ -208,15 +193,20 @@ int main(int argc, char **argv)
 
     cudaMemcpy(next, next_of, row_mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("memcpy fail");
-
+    
+    struct timeval startwtime, endwtime;
+    gettimeofday (&startwtime, NULL);
+    
     for (int i = 0; i < N_RUNS; ++i) {
         cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, prev, next, N);
         cudaCheckErrors("compute fail");
-        cuda_copy <<< grid, 1>>> (d_help, d_table, total_size, N);
-        cudaCheckErrors("copy fail");
-        cudaMemcpy(table, d_table, mem_size, cudaMemcpyDeviceToHost);
+        swap(&d_table, &d_help);
+        
         cudaCheckErrors("memcpy fail");
+#ifdef PRINT
+        cudaMemcpy(table, d_table, mem_size, cudaMemcpyDeviceToHost);
         print_table(table);
+#endif
     }
 
     gettimeofday (&endwtime, NULL);
