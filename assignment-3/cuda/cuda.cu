@@ -78,13 +78,8 @@ void save_table(int *X, int N)
 #define POS(i, j) (i*N + j)
 #define cPOS(i, j) (i*Nc + j)
 
-int* prev_of;
-int* next_of;
-
-void pre_calc()
+void pre_calc(int* prev_of, int* next_of)
 {
-    prev_of = (int*) malloc(N * sizeof(size_t));
-    next_of = (int*) malloc(N * sizeof(size_t));
 
     prev_of[0] = N - 1;
     next_of[N - 1] = 0;
@@ -168,7 +163,11 @@ int main(int argc, char **argv)
     const int thread_count = find_thread_count(total_size);
     const int blocks_count = total_size / thread_count;
 
-    pre_calc();
+    int *prev_of;
+    int *next_of;
+    prev_of = (int*) malloc(N * sizeof(size_t));
+    next_of = (int*) malloc(N * sizeof(size_t));
+    pre_calc(prev_of, next_of);
 
     cudaMalloc((void **) &d_help,  mem_size);
     cudaCheckErrors("malloc fail");
@@ -202,7 +201,6 @@ int main(int argc, char **argv)
         cudaCheckErrors("compute fail");
         swap(&d_table, &d_help);
         
-        cudaCheckErrors("memcpy fail");
 #ifdef PRINT
         cudaMemcpy(table, d_table, mem_size, cudaMemcpyDeviceToHost);
         print_table(table);
