@@ -44,15 +44,6 @@ void save_table(int *X, int N)
     fclose(fp);
 }
 
-//TODO: move in generic functions file.
-void pre_calc(int* prev_of, int* next_of, int N)
-{
-    prev_of[0] = N - 1;
-    next_of[N - 1] = 0;
-    for (int i = 1; i < N; ++i) prev_of[i] = i - 1;
-    for (int i = 0; i < N - 1; ++i) next_of[i] = i + 1;
-}
-
 /* Determines the number of threads per block.
  * Returns a power of 2 number that evenly divides the total number of elements*/
 int find_thread_count(const int dim)
@@ -63,16 +54,16 @@ int find_thread_count(const int dim)
     return result >> 1;
 }
 
-__global__ void cuda_compute(int *d_help, const int *d_table, const int *prev, const int *next, size_t N)
+__global__ void cuda_compute(int *d_help, const int *d_table, size_t N)
 {
     const size_t cell_id = blockIdx.x * blockDim.x + threadIdx.x;
     const size_t i = cell_id / N;
     const size_t j = cell_id % N;
 
-    const size_t left = prev[i];
-    const size_t right = next[i];
-    const size_t up = prev[j];
-    const size_t down = next[j];
+    const size_t left = (i+1)%N;
+    const size_t right = (i-1)%N;
+    const size_t up = (j-1)%N;
+    const size_t down = (j+1)%N;
 
     const int alive_neighbors = d_table[POS(left , up  )] +
                                 d_table[POS(left , j   )] +
@@ -112,7 +103,6 @@ int main(int argc, char **argv)
     const size_t N = atoi(argv[2]);
     const size_t total_elements = N * N;
     const size_t mem_size = total_elements * sizeof(int);
-    const size_t row_mem_size = N * sizeof(int);
 
     char* filename = argv[1];
     int *table;
@@ -129,36 +119,15 @@ int main(int argc, char **argv)
     //TODO: fix error with blocks count when the input array is big
     const unsigned int blocks_count = total_elements / thread_count;
 
-    int *prev_of;
-    int *next_of;
-    prev_of = (int*) malloc(N * sizeof(size_t));
-    next_of = (int*) malloc(N * sizeof(size_t));
-    pre_calc(prev_of, next_of, N);
-
-    int *d_help, *d_table, *prev, *next;
+    int *d_help, *d_table;
     cudaMalloc((void **) &d_help,  mem_size);
     cudaCheckErrors("malloc fail");
 
     cudaMalloc((void **) &d_table, mem_size);
     cudaCheckErrors("malloc fail");
 
-    cudaMalloc((void **) &prev, row_mem_size);
-    cudaCheckErrors("malloc fail");
-
-    cudaMalloc((void **) &next, row_mem_size);
-    cudaCheckErrors("malloc fail");
-
     cudaMemcpy(d_table, table, mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("memcpy fail");
-
-    cudaMemcpy(prev, prev_of, row_mem_size, cudaMemcpyHostToDevice);
-    cudaCheckErrors("memcpy fail");
-
-    cudaMemcpy(next, next_of, row_mem_size, cudaMemcpyHostToDevice);
-    cudaCheckErrors("memcpy fail");
-
-    free(prev_of);
-    free(next_of);
 
     float time;
     cudaEvent_t start, stop;
@@ -167,7 +136,7 @@ int main(int argc, char **argv)
     cudaEventRecord(start, 0) ;
 
     for (int i = 0; i < n_runs; ++i) {
-    cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, prev, next, N);
+    cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, N);
         cudaCheckErrors("compute fail");
         swap(&d_table, &d_help);
 
