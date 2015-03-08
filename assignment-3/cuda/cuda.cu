@@ -44,6 +44,7 @@ void save_table(int *X, int N)
     fclose(fp);
 }
 
+//TODO: change it with nvidia's function
 /* Determines the number of threads per block.
  * Returns a power of 2 number that evenly divides the total number of elements*/
 int find_thread_count(const int dim)
@@ -56,14 +57,14 @@ int find_thread_count(const int dim)
 
 __global__ void cuda_compute(int *d_help, const int *d_table, size_t N)
 {
-    const size_t cell_id = blockIdx.x * blockDim.x + threadIdx.x;
-    const size_t i = cell_id / N;
-    const size_t j = cell_id % N;
+    const int cell_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = cell_id / N;
+    const int j = cell_id % N;
 
-    const size_t left = (i+1)%N;
-    const size_t right = (i-1)%N;
-    const size_t up = (j-1)%N;
-    const size_t down = (j+1)%N;
+    const int left = (i-1)%N;
+    const int right = (i+1)%N;
+    const int up = (j-1)%N;
+    const int down = (j+1)%N;
 
     const int alive_neighbors = d_table[POS(left , up  )] +
                                 d_table[POS(left , j   )] +
