@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import os
-import shutil
 import hashlib
 
 dim = 1000
