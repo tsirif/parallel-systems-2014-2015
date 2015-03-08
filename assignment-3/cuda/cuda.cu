@@ -1,8 +1,6 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
 #include <assert.h>
 #include "../utils/utils.h"
 //TODO: debloat
@@ -128,6 +126,7 @@ int main(int argc, char **argv)
 #endif
 
     const unsigned int thread_count = find_thread_count(total_elements);
+    //TODO: fix error with blocks count when the input array is big
     const unsigned int blocks_count = total_elements / thread_count;
 
     int *prev_of;
@@ -157,15 +156,18 @@ int main(int argc, char **argv)
 
     cudaMemcpy(next, next_of, row_mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("memcpy fail");
-    
+
     free(prev_of);
     free(next_of);
 
-    struct timeval startwtime, endwtime;
-    gettimeofday (&startwtime, NULL);
+    float time;
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start) ;
+    cudaEventCreate(&stop) ;
+    cudaEventRecord(start, 0) ;
 
     for (int i = 0; i < n_runs; ++i) {
-        cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, prev, next, N);
+    cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, prev, next, N);
         cudaCheckErrors("compute fail");
         swap(&d_table, &d_help);
 
@@ -175,10 +177,10 @@ int main(int argc, char **argv)
 #endif
     }
 
-    gettimeofday (&endwtime, NULL);
-    double exec_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-                                / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-    printf("clock: %fs\n", exec_time);
+    cudaEventRecord(stop, 0) ;
+    cudaEventSynchronize(stop) ;
+    cudaEventElapsedTime(&time, start, stop) ;
+    printf("Time to run:  %3.1f ms \n", time);
 
     cudaMemcpy(table, d_table, total_elements * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceReset();
