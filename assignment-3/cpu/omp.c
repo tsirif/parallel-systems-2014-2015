@@ -7,7 +7,7 @@
 #define NTHREADS 6
 
 void swap(int** a, int** b);
-int count_neighbors(size_t x0, size_t x1, size_t x2, size_t y0, size_t y1, size_t y2);
+int count_neighbors(int x0, int x1, int x2, int y0, int y1, int y2);
 
 /* define colors */
 //TODO: move them somewhere better
@@ -51,7 +51,7 @@ void save_table(int *X, int N)
 {
     FILE *fp;
     char filename[20];
-    sprintf(filename, "results.bin");
+    sprintf(filename, "omp-results.bin");
 #ifndef TEST
     printf("Saving table in file %s\n", filename);
 #endif  // TEST
@@ -62,17 +62,17 @@ void save_table(int *X, int N)
 
 #define POS(i, j) (i*N + j)
 
-inline int count_neighbors(size_t left, size_t owni, size_t right, size_t up, size_t ownj, size_t down)
+inline int count_neighbors(int up, int owni, int down, int left, int ownj, int right)
 {
     return
-        table[POS(left , up  )] +
-        table[POS(left , ownj)] +
-        table[POS(left , down)] +
-        table[POS(owni , up  )] +
-        table[POS(owni , down)] +
-        table[POS(right, up  )] +
-        table[POS(right, ownj)] +
-        table[POS(right, down)] ;
+        table[POS(up   , left)] +
+        table[POS(up   , ownj)] +
+        table[POS(up   , right)] +
+        table[POS(owni , left  )] +
+        table[POS(owni , right)] +
+        table[POS(down, left  )] +
+        table[POS(down, ownj)] +
+        table[POS(down, right)] ;
 }
 
 int* prev_of;
@@ -80,8 +80,8 @@ int* next_of;
 
 void pre_calc()
 {
-    prev_of = (int*) malloc(N * sizeof(size_t));
-    next_of = (int*) malloc(N * sizeof(size_t));
+    prev_of = (int*) malloc(N * sizeof(int));
+    next_of = (int*) malloc(N * sizeof(int));
 
     prev_of[0] = N - 1;
     next_of[N - 1] = 0;
@@ -96,17 +96,17 @@ void serial_compute()
     #pragma omp parallel for private(left, right, up, down, alive_neighbors, j)
     for (i = 0; i < N; ++i) {
 
-        left = prev_of[i];
-        right = next_of[i];
+        up = prev_of[i];
+        down = next_of[i];
 
         for (j = 0; j < N; ++j) {
 
-            up = prev_of[j];
-            down = next_of[j];
+            left = prev_of[j];
+            right = next_of[j];
 
             //~ printf("(i=%lu, j=%lu) left=%lu right=%lu up=%lu down=%lu\n", i, j, left, right, up, down);
 
-            alive_neighbors = count_neighbors(left, i, right, up, j, down);
+            alive_neighbors = count_neighbors(up, i, down, left, j, right);
             help_table[POS(i, j)] = (alive_neighbors == 3) || (alive_neighbors == 2 && table[POS(i, j)]) ? 1 : 0;
         }
     }

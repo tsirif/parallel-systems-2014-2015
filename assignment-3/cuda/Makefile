@@ -3,7 +3,7 @@ OPTI = -O3 -finline-functions -fomit-frame-pointer -DNDEBUG \
 -fno-strict-aliasing --param max-inline-insns-single=1800
 STD = -std=c99
 WARN = -Wmissing-prototypes -Wall #-Winline
-SM_ARCH = sm_11
+SM_ARCH = sm_50
 CC = gcc
 NVCC = nvcc
 CCFLAGS = $(OPTI) $(WARN) $(STD)

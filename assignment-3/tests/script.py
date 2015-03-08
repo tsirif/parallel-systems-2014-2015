@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
+# encoding: utf-8
 import os
 import hashlib
 
@@ -21,8 +22,8 @@ cpu_exit = os.system("../cpu/omp.out {2} {0} {1}"  .format(dim, runs, table_file
 assert (cpu_exit == 0)
 
 #compare the result file
-cuda_out_md5 = file_md5("../cuda/results.bin")
-cpu_out_md5 = file_md5("../cpu/results.bin")
+cuda_out_md5 = file_md5("./cuda-results.bin")
+cpu_out_md5 = file_md5("./omp-results.bin")
 
 if cuda_out_md5 == cpu_out_md5:
     print("TEST SUCCESS!")
