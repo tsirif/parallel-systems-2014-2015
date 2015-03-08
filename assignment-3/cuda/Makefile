@@ -7,7 +7,7 @@ SM_ARCH = sm_11
 CC = gcc
 NVCC = nvcc
 CCFLAGS = $(OPTI) $(WARN) $(STD)
-NVCCFLAGS = -arch=$(SM_ARCH) -g -G
+NVCCFLAGS = -arch=$(SM_ARCH) -O3
 TARGET = cuda
 GEN = gen
 
@@ -18,4 +18,6 @@ run:
 	./$(GEN).out $(N)
 	./$(TARGET).out table$(N)x$(N).bin $(N) $(T)
 clear:
-	rm -f *.bin $(GEN).out $(TARGET).out test
+	rm -f *.bin $(GEN).out $(TARGET).out test.out
+test:
+	$(NVCC) $(NVCCFLAGS) -g -G -DTEST -DPRINT -o $(TARGET).out cuda.cu
