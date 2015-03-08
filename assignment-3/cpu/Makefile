@@ -11,7 +11,7 @@ GEN = gen
 
 all:
 	$(CC) $(CCFLAGS) -fopenmp -o $(TARGET).out omp.c
-	$(CC) $(CCFLAGS) -o $(GEN).out ../init/generate_table.c
+	$(CC) $(CCFLAGS) -o $(GEN).out ../utils/generate_table.c
 test: test.c omp.c
 	if [ -a $(TARGET).out ] ; \
 	then \
