@@ -1,7 +1,6 @@
 OS_SIZE    = $(shell uname -m | sed -e "s/x86_64/64/" -e "s/armv7l/32/" -e "s/aarch64/64/")
 OS_ARCH    = $(shell uname -m)
 ARCH_FLAGS =
-NVCCFLAGS = 
 
 # Take command line flags that override any of these settings
 ifeq ($(x86_64),1)
@@ -17,11 +16,6 @@ ifeq ($(aarch64),1)
 	OS_SIZE    = 64
 	OS_ARCH    = aarch64
 	ARCH_FLAGS = -target-cpu-arch ARM
-endif
-
-# Debug build flags
-ifeq ($(dbg),1)
-      NVCCFLAGS += -g -G
 endif
 
 # Gencode arguments
@@ -71,7 +65,8 @@ CCFLAGS = $(OPTI) $(WARN) $(STD)
 #flags for g++
 PPFLAGS = $(OPTI) $(WARN)
 #flags for nvcc
-NVCCFLAGS += -m${OS_SIZE} ${ARCH_FLAGS} -O3 --compiler-options "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -O3 --compiler-options "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCDBG = -m${OS_SIZE} ${ARCH_FLAGS} -g -G -pg -O0 -lineinfo -DTEST -DPRINT --compiler-options "$(WARN)" --compiler-bindir "$(NVIDIA_GCC)"
 
 #the name of the cuda source file / target executable
 TARGET = cuda
@@ -128,7 +123,7 @@ run: all
 clear:
 	rm -f *.o *.$(BIN_DIR) *.out
 	rm -rf $(BIN_DIR)/ $(TMP_DIR)/
-dbg: $(BIN_DIR)/generic_functions.o $(BIN_DIR)/$(TARGET).o
-	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -g -G -pg -O0 -lineinfo -DTEST -DPRINT -o $(TARGET)_dbg.out $(BIN_DIR)/generic_functions.o $(BIN_DIR)/cuda.o
+dbg: $(BIN_DIR) $(BIN_DIR)/generic_functions.o $(BIN_DIR)/$(TARGET).o
+	$(NVCC) $(NVCCDBG) $(GENCODE_FLAGS) -o $(BIN_DIR)/$(TARGET)_dbg.out $(BIN_DIR)/generic_functions.o $(BIN_DIR)/cuda.o
 clean: clear
 debug: dbg
