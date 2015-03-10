@@ -12,18 +12,18 @@ def file_md5(filename):
         return hashlib.md5(f.read()).hexdigest()
 
 #generate a table
-gen_exit = os.system("./gen.out {0}".format(dim))
+gen_exit = os.system("bin/gen.out {0}".format(dim))
 assert(gen_exit == 0)
 
 #run the cpu and cuda binaries
-cuda_exit = os.system("../cuda/cuda.out {2} {0} {1}".format(dim, runs, table_filename))
+cuda_exit = os.system("bin/cuda.out {2} {0} {1}".format(dim, runs, table_filename))
 assert (cuda_exit == 0)
-cpu_exit = os.system("../cpu/omp.out {2} {0} {1}"  .format(dim, runs, table_filename))
+cpu_exit = os.system("bin/omp.out {2} {0} {1}"  .format(dim, runs, table_filename))
 assert (cpu_exit == 0)
 
 #compare the result file
-cuda_out_md5 = file_md5("./cuda-results.bin")
-cpu_out_md5 = file_md5("./omp-results.bin")
+cuda_out_md5 = file_md5("cuda-results.bin")
+cpu_out_md5 = file_md5("omp-results.bin")
 
 if cuda_out_md5 == cpu_out_md5:
     print("TEST SUCCESS!")
