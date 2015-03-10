@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     cudaEventRecord(stop, 0) ;
     cudaEventSynchronize(stop) ;
     cudaEventElapsedTime(&time, start, stop) ;
-    printf("Time to run:  %3.1f ms \n", time);
+    printf("CUDA time to run:  %f s \n", time/1000);
 
     cudaMemcpy(table, d_table, total_elements * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceReset();

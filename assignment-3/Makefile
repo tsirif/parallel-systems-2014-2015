@@ -85,6 +85,10 @@ CPU_DIR = cpu
 UTILS_DIR = utils
 TESTS_DIR = tests
 
+ifeq ($(N),)
+N = 1000
+endif
+
 .PHONY: clean dbg all clear run debug
 
 # $^ is all dependancies (right of ':')
@@ -116,7 +120,7 @@ test: all
 	rm -rf $(TMP_DIR)
 	mkdir $(TMP_DIR)
 # we allow the script to fail so the dir is cleaned no matter what
-	-$(TESTS_DIR)/checksum_tester.py
+	-$(TESTS_DIR)/checksum_tester.py $(N)
 	rm -f *.bin
 run: all
 	./$(GEN).out $(N)

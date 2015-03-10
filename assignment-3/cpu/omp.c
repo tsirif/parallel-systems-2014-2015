@@ -108,9 +108,9 @@ int main(int argc, char **argv)
 #endif  // PRINT
     }
     gettimeofday (&endwtime, NULL);
-    double hash_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
+    double time = (double)((endwtime.tv_usec - startwtime.tv_usec)
                                 / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-    printf("clock: %fs\n", hash_time);
+    printf("OMP time to run: %f s\n", time);
 
     save_table(table, N, "omp-results.bin");
 

@@ -2,8 +2,9 @@
 # encoding: utf-8
 import os
 import hashlib
+from sys import argv
 
-dim = 1000
+dim = int(argv[1])
 runs = 10
 table_filename = "table{0}x{0}.bin".format(dim)
 
