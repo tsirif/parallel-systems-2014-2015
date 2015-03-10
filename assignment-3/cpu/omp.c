@@ -3,64 +3,17 @@
 #include <string.h>
 #include <sys/time.h>
 #include <omp.h>
+#include "../utils/utils.h"
 
 #define NTHREADS 6
 
-void swap(int** a, int** b);
 int count_neighbors(int x0, int x1, int x2, int y0, int y1, int y2);
-
-/* define colors */
-//TODO: move them somewhere better
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
 
 /* table is where we store the actual data,
  * help_table is used for the calculation of a new generation */
 int *table;
 int *help_table;
 int N;
-
-/* swap 2 int* pointers */
-//TODO: move somewhere better, make it a #define(?)
-inline void swap(int** a, int** b)
-{
-    int *t;
-    t = *a;
-    *a = *b;
-    *b = t;
-}
-
-/* read a table from a file */
-//TODO: move it somewhere better, seperate file
-void read_from_file(int *X, char *filename, int N)
-{
-    FILE *fp = fopen(filename, "r+");
-    int size = fread(X, sizeof(int), N * N, fp);
-#ifndef TEST
-    printf("total elements: %d\n", size);
-#endif  // TEST
-    fclose(fp);
-}
-
-void save_table(int *X, int N)
-{
-    FILE *fp;
-    char filename[20];
-    sprintf(filename, "omp-results.bin");
-#ifndef TEST
-    printf("Saving table in file %s\n", filename);
-#endif  // TEST
-    fp = fopen(filename, "w+");
-    fwrite(X, sizeof(int), N * N, fp);
-    fclose(fp);
-}
-
-#define POS(i, j) (i*N + j)
 
 inline int count_neighbors(int up, int owni, int down, int left, int ownj, int right)
 {
@@ -113,17 +66,6 @@ void serial_compute()
     swap(&table, &help_table);
 }
 
-void print_table(int* table)
-{
-    for (int i = 0; i < N; ++i) {
-        for(int j = 0; j < N; ++j) {
-            printf("%s%d "ANSI_COLOR_RESET, table[i * N + j] ? ANSI_COLOR_BLUE : ANSI_COLOR_RED, table[i * N + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-}
-
 int main(int argc, char **argv)
 {
     if (argc < 3) {
@@ -152,7 +94,7 @@ int main(int argc, char **argv)
 #endif  // TEST
 
 #ifdef PRINT
-    print_table(table);
+    print_table(table, N);
 #endif  // PRINT
 
     struct timeval startwtime, endwtime;
@@ -162,7 +104,7 @@ int main(int argc, char **argv)
         serial_compute();
         
 #ifdef PRINT
-        print_table(table);
+        print_table(table, N);
 #endif  // PRINT
     }
     gettimeofday (&endwtime, NULL);
@@ -170,7 +112,7 @@ int main(int argc, char **argv)
                                 / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     printf("clock: %fs\n", hash_time);
 
-    save_table(table, N);
+    save_table(table, N, "omp-results.bin");
 
     free(table);
     free(help_table);

@@ -18,32 +18,6 @@
         } \
     } while (0)
 
-/* read a table from a file */
-//TODO: move in generic functions file.
-void read_from_file(int *X, char *filename, int N)
-{
-    FILE *fp = fopen(filename, "r+");
-    int size = fread(X, sizeof(int), N * N, fp);
-#ifdef TEST
-    printf("total elements: %d\n", size);
-#endif  // TEST
-    fclose(fp);
-}
-
-//TODO: move in generic functions file.
-void save_table(int *X, int N)
-{
-    FILE *fp;
-    char filename[20];
-    sprintf(filename, "cuda-results.bin");
-#ifdef TEST
-    printf("Saving table in file %s\n", filename);
-#endif  // TEST
-    fp = fopen(filename, "w+");
-    fwrite(X, sizeof(int), N * N, fp);
-    fclose(fp);
-}
-
 //TODO: change it with nvidia's function
 /* Determines the number of threads per block.
  * Returns a power of 2 number that evenly divides the total number of elements*/
@@ -76,18 +50,6 @@ __global__ void cuda_compute(int *d_help, const int *d_table, int N)
                                 d_table[POS(right, down)] ;
     if (cell_id < N * N)
         d_help[cell_id] = (alive_neighbors == 3) || (alive_neighbors == 2 && d_table[cell_id]) ? 1 : 0;
-}
-
-//TODO: move in generic functions file.
-void print_table(int* A, int N)
-{
-    for (int i = 0; i < N; ++i) {
-        for(int j = 0; j < N; ++j) {
-            printf("%s%d "ANSI_COLOR_RESET, A[i * N + j] ? ANSI_COLOR_BLUE : ANSI_COLOR_RED, A[i * N + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
 }
 
 int main(int argc, char **argv)
@@ -155,5 +117,5 @@ int main(int argc, char **argv)
 
     cudaMemcpy(table, d_table, total_elements * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceReset();
-    save_table(table, N);
+    save_table(table, N, "cuda-results.bin");
 }
