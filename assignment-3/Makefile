@@ -55,13 +55,14 @@ endif
 CC = gcc
 NVCC = nvcc
 
-OPTI = -O3 -finline-functions -fomit-frame-pointer -DNDEBUG \
+OPTI = -m$(OS_SIZE) -O3 -finline-functions -fomit-frame-pointer -DNDEBUG \
 -fno-strict-aliasing --param max-inline-insns-single=1800
 STD = -std=c99
-WARN = -Wextra -Wall
+WARN = -Wextra -Wall -Wpointer-arith -Wformat -Wfloat-equal -Winit-self
+EXTRA_WARN = -Wcast-qual -Wwrite-strings -pedantic -Wshadow -Wstrict-prototypes -Wundef -Wunreachable-code
 
 #flags for gcc
-CCFLAGS = $(OPTI) $(WARN) $(STD)
+CCFLAGS = $(OPTI) $(WARN) $(STD) $(EXTRA_WARN)
 #flags for g++
 PPFLAGS = $(OPTI) $(WARN)
 #flags for nvcc
