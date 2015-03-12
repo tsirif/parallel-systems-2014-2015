@@ -3,14 +3,14 @@
 
 
 
-void read_from_file(int* X, const char* filename, int N)
+void read_from_file(int *X, const char *filename, int N)
 {
     FILE *fp = fopen(filename, "r+");
     fread(X, sizeof(int), N * N, fp);
     fclose(fp);
 }
 
-void save_table(const int *X, const char* filename, int N)
+void save_table(const int *X, const char *filename, int N)
 {
     FILE *fp;
     fp = fopen(filename, "w+");
@@ -62,5 +62,5 @@ int main()
     save_table(block_formation, "block.bin", N);
     save_table(blinker_formation, "blinker.bin", N);
     save_table(four_in_a_row, "4row.bin", N);
-    save_table(blinker_and_block_formation, "blinker_block.bin", 2*N);
+    save_table(blinker_and_block_formation, "blinker_block.bin", 2 * N);
 }
