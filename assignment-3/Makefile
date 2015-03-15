@@ -100,6 +100,8 @@ $(BIN_DIR)/$(TARGET).o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
 	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 $(BIN_DIR)/generic_functions.o : $(UTILS_DIR)/generic_functions.c
 	$(NVIDIA_GPP) $(PPFLAGS) -o $@ -c $^
+$(BIN_DIR)/$(TARGET)_dbg.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
+	$(NVCC) $(NVCCDBG) -arch=sm_11 -o $@ -c $<
 
 $(BIN_DIR)/cc_generic_functions.o: $(UTILS_DIR)/generic_functions.c
 	$(CC) $(CCFLAGS) -o $@ -c $^
@@ -111,6 +113,11 @@ $(BIN_DIR)/$(CPU_TARGET).o: $(CPU_DIR)/$(CPU_TARGET).c
 	$(CC) $(CCFLAGS) -fopenmp -o $@ -c $^
 $(BIN_DIR)/$(CPU_TARGET).out: $(BIN_DIR)/cc_generic_functions.o $(BIN_DIR)/$(CPU_TARGET).o
 	$(CC) $(CCFLAGS) -fopenmp -o $@ $^
+$(BIN_DIR)/$(CPU_TARGET)_dbg.o: $(CPU_DIR)/$(CPU_TARGET).c
+	$(CC) $(CCFLAGS) -g -DPRINT -DTEST -fopenmp -o $@ -c $^
+$(BIN_DIR)/$(CPU_TARGET)_dbg.out: $(BIN_DIR)/cc_generic_functions.o $(BIN_DIR)/$(CPU_TARGET)_dbg.o
+	$(CC) $(CCFLAGS) -g -DPRINT -DTEST -fopenmp -o $@ $^
+
 
 test: all
 	rm -rf $(TMP_DIR)
@@ -122,9 +129,9 @@ run: all
 	./$(GEN).out $(N)
 	./$(TARGET).out table$(N)x$(N).$(BIN_DIR) $(N) $(T)
 clear:
-	rm -f *.o *.$(BIN_DIR) *.out
+	rm -f *.o *.$(BIN_DIR) *.out *.html
 	rm -rf $(BIN_DIR)/ $(TMP_DIR)/
-dbg: $(BIN_DIR) $(BIN_DIR)/generic_functions.o $(BIN_DIR)/$(TARGET).o
-	$(NVCC) $(NVCCDBG) $(GENCODE_FLAGS) -o $(BIN_DIR)/$(TARGET)_dbg.out $(BIN_DIR)/generic_functions.o $(BIN_DIR)/cuda.o
+dbg: $(BIN_DIR) $(BIN_DIR)/generic_functions.o $(BIN_DIR)/$(TARGET)_dbg.o $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
+	$(NVCC) $(NVCCDBG) -arch=sm_11 -o $(BIN_DIR)/$(TARGET)_dbg.out $(BIN_DIR)/generic_functions.o $(BIN_DIR)/$(TARGET)_dbg.o
 clean: clear
 debug: dbg
