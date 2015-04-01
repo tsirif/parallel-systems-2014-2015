@@ -7,10 +7,7 @@ inline void swap(int **a, int **b)
     *b = t;
 }
 
-#define DFL_RUNS 10 /* the number of iterations if not else specified */
-
 /* Position of i-th row j-th element using our current data arrangement. */
-#define POS(i, j) (i*N + j)
 
 void read_from_file(int *X, char *filename, int N);
 void save_table(int *X, int N, const char *filename);
