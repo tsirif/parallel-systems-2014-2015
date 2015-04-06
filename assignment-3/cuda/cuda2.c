@@ -42,6 +42,8 @@ __global__ void cuda_compute(int* d_result, int* d_table, int dim)
   int bx = blockIdx.x; int by = blockIdx.y;
   int tx = threadIdx.x; int ty = threadIdx.y;
 
+  GROUP_WIDTH = TILE_WIDTH * sqrt(num_of_threads_per_block);
+
   int row = by * GROUP_WIDTH + ty * TILE_WIDTH;
   int col = bx * GROUP_WIDTH + tx * TILE_WIDTH;
 
@@ -60,21 +62,22 @@ __global__ void cuda_compute(int* d_result, int* d_table, int dim)
 
   int left, right, up, down, alive_neighbors;
 
-  for (i = 0; i < TILE_WIDTH; ++i) {
-    for (j = 0; j < TILE_WIDTH; ++j) {
+  for (i = 1; i < TILE_WIDTH + 1; ++i) {
+    for (j = 1; j < TILE_WIDTH + 1; ++j) {
       alive_neighbors =
-        tile[i][j] +
-        tile[i][j + 1] +
-        tile[i][j + 2] +
-        tile[i + 1][j] +
-        tile[i + 1][j + 2] +
-        tile[i + 2][j] +
-        tile[i + 2][j + 1] +
-        tile[i + 2][j + 2];
-      d_i = row + i;
-      d_j = col + j;
-      d_result[POS(d_i, d_j)] = (alive_neighbors == 3) ||
-        (alive_neighbors == 2 && tile[i + 1][j + 1]) ? 1 : 0;
+        tile[i - 1][j - 1] + // top-left
+        tile[i - 1][j] + // top
+        tile[i - 1][j + 1] + // top-right
+        tile[i][j - 1] + // left
+        tile[i][j + 1] + // right
+        tile[i + 1][j - 1] + // bot-left
+        tile[i + 1][j] + // bot
+        tile[i + 1][j + 1]; // bot-right
+      d_i = (row - 1 + i + dim) % dim;
+      d_j = (col - 1 + j + dim) % dim;
+      result_tile[i - 1][j - 1] = (alive_neighbors == 3) ||
+        (alive_neighbors == 2 && tile[i][j]) ? 1 : 0;
+      d_result[d_j + dim * d_i] = result_tile[i - 1][j - 1];
     }
   }
 }
