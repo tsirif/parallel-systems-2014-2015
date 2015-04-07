@@ -1,15 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
-
-void read_from_file(int *X, char *filename, int N)
-{
-    FILE *fp = fopen(filename, "r+");
-    int size = fread(X, sizeof(int), N * N, fp);
-    printf("elements: %d\n", size);
-    fclose(fp);
-}
+#include "utils.h"
 
 int main(int argc, char **argv)
 {
