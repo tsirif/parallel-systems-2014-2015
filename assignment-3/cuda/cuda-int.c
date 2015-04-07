@@ -1,6 +1,13 @@
-#include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <cuda_runtime.h>
+
+#include "utils.h"
+
+#define DFL_RUNS 1
+#define CONF_WIDTH 8
+#define CONF_HEIGHT 4
 
 typedef uint32_t uint;
 
@@ -16,16 +23,9 @@ typedef uint32_t uint;
 // TODO: Test if implementation is correct.
 
 __global__ void calculate_next_generation(
-    uint const* d_table, uint* d_result, int dim,
-    int block_width, int block_height)
+    uint const* d_table, uint* d_result,
+    uint m_width, uint m_height, uint m_size)
 {
-  // TODO mby put as arguments only the necessary: m_width, m_height
-  const int thread_width = 8;
-  const int thread_height = 4;
-  const int m_width = dim / thread_width;
-  const int m_height = dim / thread_height;
-  const int m_size = m_width * m_height;
-
   int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
@@ -202,6 +202,48 @@ __global__ void calculate_next_generation(
   d_result[row + col] = result_tile;
 }
 
+__global__ void convert_to_tiled(
+    int const* d_table, uint* d_utable,
+    uint m_width, uint m_height, uint m_size)
+{
+  int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
+  int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+
+  int start_i = row * sizeof(uint);
+  int start_j = col * CONF_WIDTH;
+  int i, j;
+  uint place = 1u;
+  uint tile = 0u;
+  for (i = start_i; i < start_i + CONF_HEIGHT; ++i) {
+    for (j = start_j; j < start_j + CONF_WIDTH; ++j) {
+      if (d_table[j + i * m_width * CONF_WIDTH])
+        tile |= place;
+      place <<= 1;
+    }
+  }
+
+  d_utable[col + m_width * row] = tile;
+}
+
+__global__ void convert_from_tiled(
+    int* d_table, uint const* d_utable,
+    uint m_width, uint m_height, uint m_size)
+{
+  int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
+  int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+
+  int start_i = row * sizeof(uint);
+  int start_j = col * CONF_WIDTH;
+  int i, j;
+  int place = 0;
+  const uint tile = d_utable[col + row * m_width];
+  for (i = start_i; i < start_i + CONF_HEIGHT; ++i) {
+    for (j = start_j; j < start_j + CONF_WIDTH; ++j) {
+      d_table[j + i * m_width * CONF_WIDTH] = (int) (tile >> place++ & 1u);
+    }
+  }
+}
+
 int main(int argc, char **argv)
 {
 /******************************************************************************
@@ -209,7 +251,7 @@ int main(int argc, char **argv)
  ******************************************************************************/
 
   if (argc < 3) {
-    printf("usage: %s FILE dimension\n", argv[0]);
+    printf("usage: %s filename dimension (iterations)\n", argv[0]);
     exit(1);
   }
   // get number of GOF generations if available else use the default
@@ -217,15 +259,20 @@ int main(int argc, char **argv)
   if (argc == 4) n_runs = atoi(argv[3]);
   else n_runs = DFL_RUNS;
   // get size of GOF matrix
-  const int dim = atoi(argv[2]);
+  const uint dim = atoi(argv[2]);
   // total cells in the squared sized matrix
-  const int total_elements = dim * dim;
+  const uint total_elements = dim * dim;
   // size of GOF matrix
-  const int mem_size = total_elements * sizeof(int);
+  const uint mem_size = total_elements * sizeof(int);
+  const uint thread_width = CONF_WIDTH;
+  const uint thread_height = CONF_HEIGHT;
+  const uint d_m_size = mem_size / (thread_height * thread_width);
+  const uint m_width = dim / thread_width;
+  const uint m_height = dim / thread_height;
   // get name of file which contains the initial GOF matrix
   char* filename = argv[1];
   // initialize and parse the matrix out of the file
-  int *table;
+  int* table;
   printf("Reading %dx%d table from file %s\n", dim, dim, filename);
   table = (int*) malloc(mem_size);
   read_from_file(table, filename, dim);
@@ -235,63 +282,84 @@ int main(int argc, char **argv)
 #endif
 
 /******************************************************************************
+ *                              Table Conversion                              *
+ ******************************************************************************/
+
+/******************************************************************************
  *                           Device initialization                            *
  ******************************************************************************/
 
-  // calculate number of blocks and number of threads per block
-  int t_count = find_thread_count(total_elements);
-  dim3 thread_count(t_count);
-  //TODO: fix error with blocks count when the input array is big
-  dim3 blocks_count(total_elements / t_count);
   // allocate memory on device
-  int *d_table, *d_result;
+  uint* d_utable;
+  int* d_table;
   cudaMalloc((void **) &d_table,  mem_size);
-  cudaCheckErrors("device allocation of GOF matrix failed");
-  cudaMalloc((void **) &d_result,  mem_size);
-  cudaCheckErrors("device allocation of GOF helper matrix failed");
+  cudaCheckErrors("device allocation of GOF matrix failed", __FILE__, __LINE__);
+  cudaMalloc((void **) &d_utable,  d_m_size));
+  cudaCheckErrors("device allocation of GOF uint tiled matrix failed", __FILE__, __LINE__);
   // transfer memory from initial matrix from host to device
   cudaMemcpy(d_table, table, mem_size, cudaMemcpyHostToDevice);
-  cudaCheckErrors("host to device memory copy failed");
+  cudaCheckErrors("copy from host to device memory failed", __FILE__, __LINE__);
+
+  convert_to_tiled <<< n_blocks, n_threads >>>(d_table, d_utable,
+      m_width, m_height, m_size);
+  cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
+
+  cudaFree((void*) d_table);
+  cudaCheckErrors("device freeing of GOF matrix failed", __FILE__, __LINE__);
 
 /******************************************************************************
  *                           Calculation execution                            *
  ******************************************************************************/
 
   // start timewatch
-  float time;
-  cudaEvent_t start, stop;
-  cudaEventCreate(&start) ;
-  cudaEventCreate(&stop) ;
-  cudaEventRecord(start, 0) ;
+  /* float time;                 */
+  /* cudaEvent_t start, stop;    */
+  /* cudaEventCreate(&start) ;   */
+  /* cudaEventCreate(&stop) ;    */
+  /* cudaEventRecord(start, 0) ; */
 
+  // calculate iterations of game of life with GPU
+  uint* d_uhelp;
+  cudaMalloc((void **) &d_uhelp, d_m_size);
+  cudaCheckErrors("device allocation of help matrix failed", __FILE__, __LINE__);
   for (int i = 0; i < n_runs; ++i) {
-    // compute with gpu
-    cuda_compute <<< blocks_count, thread_count >>>(d_result, d_table, dim);
-    cudaCheckErrors("computation with gpu failed");
-    swap(&d_table, &d_result);
-#ifdef PRINT
-    cudaMemcpy(table, d_table, mem_size, cudaMemcpyDeviceToHost);
-    print_table(table, N);
-#endif
+    calculate_next_generation <<< blocks_count, thread_count >>>(
+        d_utable, d_uhelp, m_width, m_height, d_m_size);
+    cudaCheckErrors("calculating next generation failed");
+    swap(&d_utable, &d_uhelp);
   }
+  cudaFree((void *) d_uhelp);
+  cudaCheckErrors("device freeing of help matrix failed", __FILE__, __LINE__);
 
   // end timewatch
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&time, start, stop);
-  printf("CUDA time to run:  %f s \n", time/1000);
+  /* cudaEventRecord(stop, 0);                        */
+  /* cudaEventSynchronize(stop);                      */
+  /* cudaEventElapsedTime(&time, start, stop);        */
+  /* printf("CUDA time to run:  %f s \n", time/1000); */
 
 /******************************************************************************
  *                  Device finalization and Result printing                   *
  ******************************************************************************/
 
+  // allocation again of a matrix that holds the normal representation
+  cudaMalloc((void **) &d_table,  mem_size);
+  cudaCheckErrors("device allocation of GOF matrix failed", __FILE__, __LINE__);
+
+  // convert back to normal representation of the matrix
+  convert_from_tiled <<< n_blocks, n_threads >>>(d_table, d_utable,
+      m_width, m_height, m_size);
+  cudaCheckErrors("failed to convert to normal repr from uint tiled repr", __FILE__, __LINE__);
+
   // transfer memory from resulting matrix from device to host
   cudaMemcpy(table, d_table, mem_size, cudaMemcpyDeviceToHost);
+  cudaCheckErrors("copy from device to host memory failed", __FILE__, __LINE__);
   print_table(table, dim);
-  cudaCheckErrors("device to host memory copy failed");
+
   // reset gpu
   cudaDeviceReset();
-  // save results to a file
-  save_table(table, dim, "cuda-results.bin");
-}
 
+  // save results to a file
+  save_table(table, dim, "cuda-2-results.bin");
+
+  free((void*) table);
+}

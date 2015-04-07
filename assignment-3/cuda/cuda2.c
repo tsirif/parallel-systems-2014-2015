@@ -8,22 +8,6 @@
 #define DFL_RUNS 10   //!< the number of iterations if not else specified
 #define POS(i, j) (j + dim * i)
 
-/**
- * @brief Gets last cuda error and if it's not a cudaSuccess
- * prints debug information on stderr and aborts.
- */
-inline void cudaCheckErrors(char const* msg)
-{
-  do {
-    cudaError_t __err = cudaGetLastError();
-    if (__err != cudaSuccess) {
-      fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n",
-          msg, cudaGetErrorString(__err),
-          __FILE__, __LINE__);
-      exit(1);
-    }
-  } while (0);
-}
 
 
 //TODO: change it with nvidia's function
