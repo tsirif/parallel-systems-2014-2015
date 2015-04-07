@@ -12,8 +12,8 @@
         cudaError_t __err = cudaGetLastError(); \
         if (__err != cudaSuccess) { \
             fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \
-                    msg, cudaGetErrorString(__err), \
-                    __FILE__, __LINE__); \
+                msg, cudaGetErrorString(__err), \
+                __FILE__, __LINE__); \
             exit(1); \
         } \
     } while (0)
@@ -24,40 +24,32 @@
 int find_thread_count(const int dim)
 {
     if (dim == 0) return 0;
-
     int result = 2;
-
     while ((dim % result == 0) && (result < 1024)) result *= 2;
-
     return result >> 1;
 }
 
 __global__ void cuda_compute(int *d_help, const int *d_table, int N)
 {
-    const int start_cell_id = (blockIdx.x * blockDim.x + threadIdx.x) * N;
-    int cell_id;
+    const int cell_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const int j = cell_id % N;
+    const int i = (cell_id - j) / N;
 
-    for (cell_id = start_cell_id; cell_id < start_cell_id + N; cell_id++) {
-        int j = cell_id % N;
-        int i = (cell_id - j) / N;
+    const int left = (i-1+N)%N;
+    const int right = (i+1)%N;
+    const int up = (j-1+N)%N;
+    const int down = (j+1)%N;
 
-        int left = (i - 1 + N) % N;
-        int right = (i + 1) % N;
-        int up = (j - 1 + N) % N;
-        int down = (j + 1) % N;
-
-        const int alive_neighbors = d_table[POS(left , up  )] +
-                                    d_table[POS(left , j   )] +
-                                    d_table[POS(left , down)] +
-                                    d_table[POS(i    , up  )] +
-                                    d_table[POS(i    , down)] +
-                                    d_table[POS(right, up  )] +
-                                    d_table[POS(right, j   )] +
-                                    d_table[POS(right, down)] ;
-
-        if (cell_id < N * N)
-            d_help[cell_id] = (alive_neighbors == 3) || (alive_neighbors == 2 && d_table[cell_id]) ? 1 : 0;
-    }
+    const int alive_neighbors = d_table[POS(left , up  )] +
+                                d_table[POS(left , j   )] +
+                                d_table[POS(left , down)] +
+                                d_table[POS(i    , up  )] +
+                                d_table[POS(i    , down)] +
+                                d_table[POS(right, up  )] +
+                                d_table[POS(right, j   )] +
+                                d_table[POS(right, down)] ;
+    if (cell_id < N * N)
+        d_help[cell_id] = (alive_neighbors == 3) || (alive_neighbors == 2 && d_table[cell_id]) ? 1 : 0;
 }
 
 int main(int argc, char **argv)
@@ -68,7 +60,6 @@ int main(int argc, char **argv)
     }
 
     int n_runs;
-
     if (argc == 4) n_runs = atoi(argv[3]);
     else n_runs = DFL_RUNS;
 
@@ -76,10 +67,10 @@ int main(int argc, char **argv)
     const int total_elements = N * N;
     const int mem_size = total_elements * sizeof(int);
 
-    char *filename = argv[1];
+    char* filename = argv[1];
     int *table;
     printf("Reading %dx%d table from file %s\n", N, N, filename);
-    table = (int *) malloc(mem_size);
+    table = (int*) malloc(mem_size);
     read_from_file(table, filename, N);
     printf("Finished reading table\n");
 
@@ -87,10 +78,10 @@ int main(int argc, char **argv)
     print_table(table, N);
 #endif
 
-    int t_count = find_thread_count(N);
+    int t_count = find_thread_count(total_elements);
     dim3 thread_count(t_count);
     //TODO: fix error with blocks count when the input array is big
-    dim3 blocks_count(N / t_count);
+    dim3 blocks_count(total_elements / t_count);
 
     int *d_help, *d_table;
     cudaMalloc((void **) &d_help,  mem_size);
@@ -109,7 +100,7 @@ int main(int argc, char **argv)
     cudaEventRecord(start, 0) ;
 
     for (int i = 0; i < n_runs; ++i) {
-        cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, N);
+    cuda_compute <<< blocks_count, thread_count >>>(d_help, d_table, N);
         cudaCheckErrors("compute fail");
         swap(&d_table, &d_help);
 
@@ -122,7 +113,7 @@ int main(int argc, char **argv)
     cudaEventRecord(stop, 0) ;
     cudaEventSynchronize(stop) ;
     cudaEventElapsedTime(&time, start, stop) ;
-    printf("CUDA time to run:  %f s \n", time / 1000);
+    printf("CUDA time to run:  %f s \n", time/1000);
 
     cudaMemcpy(table, d_table, total_elements * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceReset();
