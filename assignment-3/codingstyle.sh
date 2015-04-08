@@ -18,7 +18,7 @@
 #
 
 ASTYLE=astyle
-ASTYLE_OPTIONS=" --indent-classes --style=kr --indent=spaces=4 --indent-switches --indent-col1-comments --pad-oper --align-pointer=name --remove-brackets --indent-preprocessor --indent-preproc-define --indent-col1-comments --break-blocks --pad-header --delete-empty-lines"
+ASTYLE_OPTIONS=" --indent-classes --style=kr --indent=spaces=2 --indent-switches --indent-col1-comments --pad-oper --align-pointer=name --remove-brackets --indent-preprocessor --indent-preproc-define --indent-col1-comments --break-blocks --pad-header"
 ASTYLE_CLI_OPTIONS=" --suffix=none"
 
 
