@@ -323,23 +323,28 @@ __global__ void convert_to_tiled(
 {
   int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
-  int start_i = row * sizeof(uint);
+  int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   int start_j = col * CONF_WIDTH;
   uint place = 1u;
   uint tile = 0u;
 
   if ((row + col) >= m_size) return; //del
 
-  for (int i = start_i; i < start_i + CONF_HEIGHT; ++i) {
-    for (int j = start_j; j < start_j + CONF_WIDTH; ++j) {
-      if (d_table[j + i * m_width * CONF_WIDTH])
+  const int step_i = m_width * CONF_WIDTH;
+  const int end_i = start_i + CONF_HEIGHT * step_i;
+  const int end_j = start_j + CONF_WIDTH;
+  int i, j;
+
+  for (i = start_i; i < end_i; i += step_i) {
+    for (j = start_j; j < end_j; ++j) {
+      if (d_table[j + i])
         tile |= place;
 
       place <<= 1;
     }
   }
 
-  d_utable[col + m_width * row] = tile;
+  d_utable[col + row] = tile;
 }
 
 /**
@@ -357,18 +362,22 @@ __global__ void convert_from_tiled(
 {
   int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
-
-  int start_i = row * sizeof(uint);
+  int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   int start_j = col * CONF_WIDTH;
   int place = 0;
 
-  if ((row + col    ) >= m_size) return; //del
+  if ((row + col) >= m_size) return; //del
 
-  const uint tile = d_utable[col + row * m_width];
+  const uint tile = d_utable[col + row];
 
-  for (int i = start_i; i < start_i + CONF_HEIGHT; ++i) {
-    for (int j = start_j; j < start_j + CONF_WIDTH; ++j)
-      d_table[j + i * m_width * CONF_WIDTH] = (int) (tile >> place++ & 1u);
+  const int step_i = m_width * CONF_WIDTH;
+  const int end_i = start_i + CONF_HEIGHT * step_i;
+  const int end_j = start_j + CONF_WIDTH;
+  int i, j;
+
+  for (i = start_i; i < end_i; i += step_i) {
+    for (j = start_j; j < end_j; ++j) {
+      d_table[j + i] = (int) (tile >> place++ & 1u);
   }
 }
 
@@ -453,9 +462,10 @@ int main(int argc, char **argv)
   cudaCheckErrors("copy from host to device memory failed", __FILE__, __LINE__);
 
   convert_to_tiled <<< grid, block >>>(d_table, d_tiled_table,
-                                       m_width, m_height, mem_size_tiled);
+                                       m_width, m_height, total_elements_tiled);
   cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
+  // wtf????
   // ~ cudaFree((void *) d_table);
   // ~ cudaCheckErrors("device freeing of GOL matrix failed", __FILE__, __LINE__);
 
