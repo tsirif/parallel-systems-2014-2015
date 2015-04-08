@@ -21,7 +21,8 @@
 /**
  * @brief The number of iterations (life generations) over the GOL matrix.
  */
-#define DFL_RUNS 1
+#define DFL_RUNS 10
+
 /**
  * @brief The width of a tile assigned to a thread.
  */
@@ -58,30 +59,10 @@ __global__ void calculate_next_generation(
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
-
-
   const int t_row = (row - m_width + m_size) % m_size;
   const int b_row = (row + m_width) % m_size;
   const int l_col = (col - 1 + m_width) % m_width;
   const int r_col = (col + 1) % m_width;
-
-  if ((row + col    ) >= m_size) return;
-
-  if ((t_row + l_col) >= m_size) return;
-
-  if ((t_row + col  ) >= m_size) return;
-
-  if ((t_row + r_col) >= m_size) return;
-
-  if ((row + l_col  ) >= m_size) return;
-
-  if ((row + r_col  ) >= m_size) return;
-
-  if ((b_row + l_col) >= m_size) return;
-
-  if ((b_row + col  ) >= m_size) return;
-
-  if ((b_row + r_col) >= m_size) return;
 
   //TODO: write only own tile to shared memory, write some edges of the block in shared memory and then sync and read neighbors from shared memory
   // bring information to local memory (global/cache/registers)
@@ -328,8 +309,6 @@ __global__ void convert_to_tiled(
   uint place = 1u;
   uint tile = 0u;
 
-  if ((row + col) >= m_size) return; //del
-
   const int step_i = m_width * CONF_WIDTH;
   const int end_i = start_i + CONF_HEIGHT * step_i;
   const int end_j = start_j + CONF_WIDTH;
@@ -366,8 +345,6 @@ __global__ void convert_from_tiled(
   int start_j = col * CONF_WIDTH;
   int place = 0;
 
-  if ((row + col) >= m_size) return; //del
-
   const uint tile = d_utable[col + row];
 
   const int step_i = m_width * CONF_WIDTH;
@@ -376,7 +353,7 @@ __global__ void convert_from_tiled(
   int i, j;
 
   for (i = start_i; i < end_i; i += step_i) {
-    for (j = start_j; j < end_j; ++j) {
+    for (j = start_j; j < end_j; ++j)
       d_table[j + i] = (int) (tile >> place++ & 1u);
   }
 }
@@ -430,6 +407,8 @@ int main(int argc, char **argv)
   const uint m_height = dim / thread_height;
   // get name of file which contains the initial GOL matrix
 
+  // Warning! grid and block sizes that correspond to a bigger array will cause leaks
+  // these leaks in convert_to and convert_from are currently harmless (no failure)
   const dim3 block(5, 10);
   const dim3 grid(25, 25);
 
@@ -465,7 +444,6 @@ int main(int argc, char **argv)
                                        m_width, m_height, total_elements_tiled);
   cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
-  // wtf????
   // ~ cudaFree((void *) d_table);
   // ~ cudaCheckErrors("device freeing of GOL matrix failed", __FILE__, __LINE__);
 
@@ -473,17 +451,17 @@ int main(int argc, char **argv)
    *                           Calculation execution                            *
    ******************************************************************************/
 
-  // start timewatch
-  /* float time;                 */
-  /* cudaEvent_t start, stop;    */
-  /* cudaEventCreate(&start) ;   */
-  /* cudaEventCreate(&stop) ;    */
-  /* cudaEventRecord(start, 0) ; */
-
   // calculate iterations of game of life with GPU
   uint *d_tiled_help; /* Tiled help matrix in device memory. */
   cudaMalloc((void **) &d_tiled_help, total_elements_tiled);
   cudaCheckErrors("device allocation of help matrix failed", __FILE__, __LINE__);
+
+  // start timewatch
+  float time;
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
 
   //TODO: synchronize here?
   for (int i = 0; i < n_runs; ++i) {
@@ -497,10 +475,10 @@ int main(int argc, char **argv)
   // ~ cudaCheckErrors("device freeing of help matrix failed", __FILE__, __LINE__);
 
   // end timewatch
-  /* cudaEventRecord(stop, 0);                        */
-  /* cudaEventSynchronize(stop);                      */
-  /* cudaEventElapsedTime(&time, start, stop);        */
-  /* printf("CUDA time to run:  %f s \n", time/1000); */
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  printf("CUDA time to run:  %f s \n", time / 1000);
 
   /******************************************************************************
    *                  Device finalization and Result printing                   *
