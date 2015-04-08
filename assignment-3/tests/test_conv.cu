@@ -82,40 +82,73 @@ void print_table_tiled(uint *A, int N)
     printf("\n");
 }
 
+void print_table(int *A, int N)
+{
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j)
+            printf("%d ", A[i * N + j]);
+
+        printf("\n");
+    }
+
+    printf("\n");
+}
+
+
 int main()
 {
-    uint mem_size = 32 * sizeof(int);
-    uint mem_size_tiled = sizeof(uint);
+    const uint mem_size = 32 * sizeof(int);
+    const uint mem_size_tiled = sizeof(uint);
 
-    dim3 grid(1, 1);
-    dim3 block(1, 1);
+    const dim3 grid(1, 1);
+    const dim3 block(1, 1);
 
-    int *test_table;
-    uint *test_table_tiled;
-    uint *d_test_table_tiled;
-    int *d_test_table;
+    int *table;
+    uint *table_tiled;
+    uint *d_table_tiled;
+    int *d_table;
 
-    test_table = (int *) malloc(mem_size);
+    table = (int *) malloc(mem_size);
 
-    for (int i = 0; i < 31; i++) test_table[i] = 1;
-    test_table[31]=0;
+    srand(time(NULL));
 
+    for (int i = 0; i < 32; i++) table[i] = ( (float)rand() / (float)RAND_MAX ) < 0.4;
 
-    cudaMalloc((void **) &d_test_table,  mem_size);
+    cudaMalloc((void **) &d_table,  mem_size);
     cudaCheckErrors("device allocation of GOL matrix failed", __FILE__, __LINE__);
 
-    cudaMalloc((void **) &d_test_table_tiled, mem_size_tiled);
+    cudaMalloc((void **) &d_table_tiled, mem_size_tiled);
     cudaCheckErrors("device allocation of GOL uint tiled matrix failed", __FILE__, __LINE__);
 
-    cudaMemcpy(d_test_table, test_table, mem_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_table, table, mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("copy from host to device memory failed", __FILE__, __LINE__);
 
-    convert_to_tiled <<< grid, block >>>(d_test_table, d_test_table_tiled, 1, 1, 1);
+    convert_to_tiled <<< grid, block >>>(d_table, d_table_tiled, 1, 1, 1);
     cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
 
-    test_table_tiled = (uint *)malloc(mem_size_tiled);
-    cudaMemcpy(test_table_tiled, d_test_table_tiled, mem_size_tiled, cudaMemcpyDeviceToHost);
-    // ~ print_table_tiled(test_table_tiled, 1);
-    printf("%u\n%x\n", test_table_tiled[0], test_table_tiled[0]);
+    table_tiled = (uint *)malloc(mem_size_tiled);
+    cudaMemcpy(table_tiled, d_table_tiled, mem_size_tiled, cudaMemcpyDeviceToHost);
+    cudaCheckErrors("memcpy1", __FILE__, __LINE__);
+    // ~ print_table_tiled(table_tiled, 1);
+    printf("%u\n%x\n", table_tiled[0], table_tiled[0]);
+
+    convert_from_tiled <<< grid, block >>>(d_table, d_table_tiled, 1, 1, 1);
+    cudaCheckErrors("failed to convert to normal repr from uint tiled repr", __FILE__, __LINE__);
+
+    int *table_final;
+    table_final = (int *) malloc(mem_size);
+
+    cudaMemcpy(table_final, d_table, mem_size, cudaMemcpyDeviceToHost);
+    cudaCheckErrors("memcpy1", __FILE__, __LINE__);
+
+    for (int i = 0; i < 32; i++) printf("%d ", table_final[i]);
+
+    printf("\n");
+
+    int result = 1;
+
+    for (int i = 0; i < 32; i++) result &= (table_final[i] == table[i]);
+
+    printf("equality result: %d\n", result);
 }
