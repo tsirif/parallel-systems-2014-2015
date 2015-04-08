@@ -45,185 +45,234 @@ __global__ void calculate_next_generation(
   uint const *d_table, uint *d_result,
   uint m_width, uint m_height, uint m_size)
 {
-  int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
-  int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+  const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
+  const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
-  int t_row = (row - m_width + m_size) % m_size;
-  int b_row = (row + m_width) % m_size;
-  int l_col = (col - 1 + m_width) % m_width;
-  int r_col = (col + 1) % m_width;
+  const int t_row = (row - m_width + m_size) % m_size;
+  const int b_row = (row + m_width) % m_size;
+  const int l_col = (col - 1 + m_width) % m_width;
+  const int r_col = (col + 1) % m_width;
 
+  //TODO: write only own tile to shared memory, write some edges of the block in shared memory and then sync and read neighbors from shared memory
   // bring information to local memory (global/cache/registers)
-  uint this_tile = d_table[row + col];
-  uint tl_tile = d_table[t_row + l_col];
-  uint t_tile = d_table[t_row + col];
-  uint tr_tile = d_table[t_row + r_col];
-  uint l_tile = d_table[row + l_col];
-  uint r_tile = d_table[row + r_col];
-  uint bl_tile = d_table[b_row + l_col];
-  uint b_tile = d_table[b_row + col];
-  uint br_tile = d_table[b_row + r_col];
+  const uint this_tile = d_table[row + col];
+  const uint tl_tile = d_table[t_row + l_col];
+  const uint t_tile = d_table[t_row + col];
+  const uint tr_tile = d_table[t_row + r_col];
+  const uint l_tile = d_table[row + l_col];
+  const uint r_tile = d_table[row + r_col];
+  const uint bl_tile = d_table[b_row + l_col];
+  const uint b_tile = d_table[b_row + col];
+  const uint br_tile = d_table[b_row + r_col];
 
   // build resulting tile in local memory (register)
   uint result_tile = 0;
-  uint i, alive_cells = 0;
+  uint alive_cells = 0;
   uint first_cells, second_cells, this_cell;
 
   // Update vertical edge 1 - 6
-  first_cells = (this_tile & 1u) + (this_tile >> 8 & 1u) + (t_tile >> 24 & 1u);
-  second_cells = (this_tile >> 1 & 1u) + (this_tile >> 9 & 1u) + (t_tile >> 25 & 1u);
+  first_cells = (this_tile & 1u) +
+                (this_tile >> 8 & 1u) +
+                (t_tile >> 24 & 1u);
+  second_cells = (this_tile >> 1 & 1u) +
+                 (this_tile >> 9 & 1u) +
+                 (t_tile >> 25 & 1u);
 
-  for (i = 1; i < 7; ++i) {
+  for (int i = 1; i < 7; ++i) {
+    // (x & 1u) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
     this_cell = this_tile >> i & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> i + 1 & 1u) + (this_tile >> i + 9 & 1u) +
-                    (t_tile >> i + 25 & 1u);
+      first_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
+                    ((t_tile >> (i + 25)) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> i + 1 & 1u) + (this_tile >> i + 9 & 1u) +
-                     (t_tile >> i + 25 & 1u);
+      second_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
+                     ((t_tile >> (i + 25)) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
 
-    result_tile |= alive_cells == 3 || (alive_cells == 2
-                                        && this_cell) ? 1u << i : 0u;
+    result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                          && this_cell) ? (1u << i) : 0u;
   }
 
   // Update 9 - 14
-  first_cells = (this_tile & 1u) + (this_tile >> 8 & 1u) + (this_tile >> 16 & 1u);
-  second_cells = (this_tile >> 1 & 1u) + (this_tile >> 9 & 1u) + (this_tile >> 17 & 1u);
+  first_cells = (this_tile & 1u) +
+                ((this_tile >> 8) & 1u) +
+                ((this_tile >> 16) & 1u);
+  second_cells = ((this_tile >> 1) & 1u) +
+                 ((this_tile >> 9) & 1u) +
+                 ((this_tile >> 17) & 1u);
 
-  for (i = 9; i < 15; ++i) {
-    this_cell = this_tile >> i & 1u;
+  for (int i = 9; i < 15; ++i) {
+    this_cell = (this_tile >> i) & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> i + 1 & 1u) + (this_tile >> i + 9 & 1u) +
-                    (this_tile >> i - 7 & 1u);
+      first_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
+                    ((this_tile >> (i - 7)) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> i + 1 & 1u) + (this_tile >> i + 9 & 1u) +
-                     (this_tile >> i - 7 & 1u);
+      second_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
+                     ((this_tile >> (i - 7)) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
 
-    result_tile |= alive_cells == 3 || (alive_cells == 2
-                                        && this_cell) ? 1u << i : 0u;
+    result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                          && this_cell) ? (1u << i) : 0u;
   }
 
   // Update 17 - 22
-  first_cells = (this_tile >> 24 & 1u) + (this_tile >> 8 & 1u) + (this_tile >> 16 & 1u);
-  second_cells = (this_tile >> 25 & 1u) + (this_tile >> 9 & 1u) + (this_tile >> 17 & 1u);
+  first_cells = ((this_tile >> 24) & 1u) +
+                ((this_tile >> 8) & 1u) +
+                ((this_tile >> 16) & 1u);
+  second_cells = ((this_tile >> 25) & 1u) +
+                 ((this_tile >> 9) & 1u) +
+                 ((this_tile >> 17) & 1u);
 
-  for (i = 17; i < 23; ++i) {
-    this_cell = this_tile >> i & 1u;
+  for (int i = 17; i < 23; ++i) {
+    this_cell = (this_tile >> i) & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> i + 1 & 1u) + (this_tile >> i + 9 & 1u) +
-                    (this_tile >> i - 7 & 1u);
+      first_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
+                    ((this_tile >> (i - 7)) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> i + 1 & 1u) + (this_tile >> i + 9 & 1u) +
-                     (this_tile >> i - 7 & 1u);
+      second_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
+                     ((this_tile >> (i - 7)) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
 
-    result_tile |= alive_cells == 3 || (alive_cells == 2
-                                        && this_cell) ? 1u << i : 0u;
+    result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                          && this_cell) ? (1u << i) : 0u;
   }
 
   // Update vertical edge 25 - 30
-  first_cells = (this_tile >> 24 & 1u) + (b_tile & 1u) + (this_tile >> 16 & 1u);
-  second_cells = (this_tile >> 25 & 1u) + (b_tile >> 1 & 1u) + (this_tile >> 17 & 1u);
+  first_cells = ((this_tile >> 24) & 1u) +
+                (b_tile & 1u) +
+                ((this_tile >> 16) & 1u);
+  second_cells = ((this_tile >> 25) & 1u) +
+                 ((b_tile >> 1) & 1u) +
+                 ((this_tile >> 17) & 1u);
 
-  for (i = 25; i < 31; ++i) {
-    this_cell = this_tile >> i & 1u;
+  for (int i = 25; i < 31; ++i) {
+    this_cell = (this_tile >> i) & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> i - 7 & 1u) + (this_tile >> i + 1 & 1u) +
-                    (b_tile >> i - 23 & 1u);
+      first_cells = ((this_tile >> (i - 7)) & 1u) + ((this_tile >> (i + 1)) & 1u) +
+                    ((b_tile >> (i - 23)) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> i - 7 & 1u) + (this_tile >> i + 1 & 1u) +
-                     (b_tile >> i - 23 & 1u);
+      second_cells = ((this_tile >> (i - 7)) & 1u) + ((this_tile >> (i + 1)) & 1u) +
+                     ((b_tile >> (i - 23)) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
 
-    result_tile |= alive_cells == 3 || (alive_cells == 2
-                                        && this_cell) ? 1u << i : 0u;
+    result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                          && this_cell) ? (1u << i) : 0u;
   }
 
   // Update corners 0, 7, 24, 31
   alive_cells =
     (tl_tile >> 31) +
-    (t_tile >> 24 & 1u) + (t_tile >> 25 & 1u) +
-    (this_tile >> 1 & 1u) + (this_tile >> 9 & 1u) + (this_tile >> 8 & 1u) +
-    (l_tile >> 7 & 1u) + (l_tile >> 15 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile & 1u)) ? 1u : 0u;
+    ((t_tile >> 24) & 1u) +
+    ((t_tile >> 25) & 1u) +
+    ((this_tile >> 1) & 1u) +
+    ((this_tile >> 9) & 1u) +
+    ((this_tile >> 8) & 1u) +
+    ((l_tile >> 7) & 1u) +
+    ((l_tile >> 15) & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile & 1u)) ? 1u : 0u;
   alive_cells =
-    (tr_tile >> 24 & 1u) +
-    (t_tile >> 30 & 1u) + (t_tile >> 31) +
-    (this_tile >> 6 & 1u) + (this_tile >> 14 & 1u) + (this_tile >> 15 & 1u) +
-    (r_tile & 1u) + (r_tile >> 8 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 7 & 1u)) ? 1u : 0u;
+    ((tr_tile >> 24) & 1u) +
+    ((t_tile >> 30) & 1u) +
+    (t_tile >> 31) +
+    ((this_tile >> 6) & 1u) +
+    ((this_tile >> 14) & 1u) +
+    ((this_tile >> 15) & 1u) +
+    (r_tile & 1u) +
+    ((r_tile >> 8) & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 7 & 1u)) ? 1u : 0u;
   alive_cells =
-    (bl_tile >> 7 & 1u) +
-    (b_tile >> 1u) + (b_tile >> 1 & 1u) +
-    (this_tile >> 16 & 1u) + (this_tile >> 17 & 1u) + (this_tile >> 25 & 1u) +
-    (l_tile >> 23 & 1u) + (l_tile >> 31);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 24 & 1u)) ? 1u : 0u;
+    ((bl_tile >> 7) & 1u) +
+    (b_tile >> 1u) +
+    ((b_tile >> 1) & 1u) +
+    ((this_tile >> 16) & 1u) +
+    ((this_tile >> 17) & 1u) +
+    ((this_tile >> 25) & 1u) +
+    ((l_tile >> 23) & 1u) +
+    (l_tile >> 31);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 24 & 1u)) ? 1u : 0u;
   alive_cells =
     (br_tile & 1u) +
-    (b_tile >> 6 & 1u) + (b_tile >> 7 & 1u) +
-    (this_tile >> 22 & 1u) + (this_tile >> 23 & 1u) + (this_tile >> 30 & 1u) +
-    (r_tile >> 16 & 1u) + (r_tile >> 24 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 31)) ? 1u : 0u;
+    ((b_tile >> 6) & 1u) + ((b_tile >> 7) & 1u) +
+    ((this_tile >> 22) & 1u) + ((this_tile >> 23) & 1u) + ((this_tile >> 30) & 1u) +
+    ((r_tile >> 16) & 1u) + ((r_tile >> 24) & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 31)) ? 1u : 0u;
 
   // Update horizontal edges 8, 16, 15, 23
   alive_cells =
-    (this_tile & 1u) + (this_tile >> 16 & 1u) +
-    (this_tile >> 1 & 1u) + (this_tile >> 9 & 1u) + (this_tile >> 17 & 1u) +
-    (l_tile >> 7 & 1u) + (l_tile >> 15 & 1u) + (l_tile >> 23 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 8 & 1u)) ? 1u : 0u;
+    (this_tile & 1u) +
+    ((this_tile >> 16) & 1u) +
+    ((this_tile >> 1) & 1u) +
+    ((this_tile >> 9) & 1u) +
+    ((this_tile >> 17) & 1u) +
+    ((l_tile >> 7) & 1u) +
+    ((l_tile >> 15) & 1u) +
+    ((l_tile >> 23) & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 8 & 1u)) ? 1u : 0u;
   alive_cells =
-    (this_tile >> 8 & 1u) + (this_tile >> 24 & 1u) +
-    (this_tile >> 9 & 1u) + (this_tile >> 17 & 1u) + (this_tile >> 25 & 1u) +
-    (l_tile >> 31) + (l_tile >> 15 & 1u) + (l_tile >> 23 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 16 & 1u)) ? 1u : 0u;
+    ((this_tile >> 8) & 1u) +
+    ((this_tile >> 24) & 1u) +
+    ((this_tile >> 9) & 1u) +
+    ((this_tile >> 17) & 1u) +
+    ((this_tile >> 25) & 1u) +
+    (l_tile >> 31) +
+    ((l_tile >> 15) & 1u) +
+    ((l_tile >> 23) & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 16 & 1u)) ? 1u : 0u;
   alive_cells =
-    (this_tile >> 7 & 1u) + (this_tile >> 23 & 1u) +
-    (this_tile >> 6 & 1u) + (this_tile >> 14 & 1u) + (this_tile >> 22 & 1u) +
-    (r_tile & 1u) + (r_tile >> 8 & 1u) + (l_tile >> 16 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 15 & 1u)) ? 1u : 0u;
+    ((this_tile >> 7) & 1u) +
+    ((this_tile >> 23) & 1u) +
+    ((this_tile >> 6) & 1u) +
+    ((this_tile >> 14) & 1u) +
+    ((this_tile >> 22) & 1u) +
+    (r_tile & 1u) +
+    ((r_tile >> 8) & 1u) +
+    ((l_tile >> 16) & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 15 & 1u)) ? 1u : 0u;
   alive_cells =
-    (this_tile >> 15 & 1u) + (this_tile >> 31) +
-    (this_tile >> 30 & 1u) + (this_tile >> 14 & 1u) + (this_tile >> 22 & 1u) +
-    (r_tile >> 24 & 1u) + (r_tile >> 8 & 1u) + (l_tile >> 16 & 1u);
-  result_tile |= alive_cells == 3 || (alive_cells == 2
-                                      && (this_tile >> 23 & 1u)) ? 1u : 0u;
+    ((this_tile >> 15) & 1u) +
+    (this_tile >> 31) +
+    ((this_tile >> 30) & 1u) +
+    ((this_tile >> 14) & 1u) +
+    ((this_tile >> 22) & 1u) +
+    ((r_tile >> 24) & 1u) +
+    ((r_tile >> 8) & 1u) + (l_tile >> 16 & 1u);
+  result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                        && (this_tile >> 23 & 1u)) ? 1u : 0u;
 
   // send result but to global memory
   d_result[row + col] = result_tile;
