@@ -411,7 +411,7 @@ int main(int argc, char **argv)
 
   // Warning! grid and block sizes that correspond to a bigger array will cause leaks
   // these leaks in convert_to and convert_from are currently harmless (no failure)
-  const dim3 block(5, 10);
+  const dim3 block(10, 5);
   const dim3 grid(25, 25);
 
   char *filename = argv[1];
@@ -455,7 +455,7 @@ int main(int argc, char **argv)
 
   // calculate iterations of game of life with GPU
   uint *d_tiled_help; /* Tiled help matrix in device memory. */
-  cudaMalloc((void **) &d_tiled_help, total_elements_tiled);
+  cudaMalloc((void **) &d_tiled_help, mem_size_tiled);
   cudaCheckErrors("device allocation of help matrix failed", __FILE__, __LINE__);
 
   // start timewatch
