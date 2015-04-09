@@ -18,12 +18,13 @@ ifeq ($(aarch64),1)
 	ARCH_FLAGS = -target-cpu-arch ARM
 endif
 
-# Gencode arguments
-ifeq ($(OS_ARCH),armv7l)
-SMS ?= 20 30 32 35 50
-else
-SMS ?= 11 20 30 35 50
+DEV_INFO = devInfo
+
+ifeq ($(wildcard $(DEV_INFO).out), )
+$(shell nvcc $(DEV_INFO).cu -o $(DEV_INFO).out)
 endif
+
+SMS = $(shell ./$(DEV_INFO).out)
 
 ifeq ($(SMS),)
 $(info >>> WARNING - no SM architectures have been specified <<<)
@@ -128,6 +129,6 @@ clear:
 	rm -f *.o *.$(BIN_DIR) *.out *.html
 	rm -rf $(BIN_DIR)/ $(TMP_DIR)/
 dbg: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_dbg.o $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
-	$(NVCC) $(NVCCDBG) -arch=sm_11 -o $(BIN_DIR)/$(TARGET)_dbg.out $(BIN_DIR)/$(TARGET)_dbg.o
+	$(NVCC) $(NVCCDBG) $(GENCODE_FLAGS) -o $(BIN_DIR)/$(TARGET)_dbg.out $(BIN_DIR)/$(TARGET)_dbg.o
 clean: clear
 debug: dbg
