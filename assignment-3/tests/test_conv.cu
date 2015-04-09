@@ -74,7 +74,7 @@ static void init_N()
     mem_size_tiled = 4 * sizeof(uint);
 
     grid = dim3(1, 1);
-    block = dim3(2, 2);
+    block = dim3(1, 4);
 
     memory_allocations();
 }
