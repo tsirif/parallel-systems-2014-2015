@@ -43,13 +43,13 @@
  * @returns Nothing.
  * @param d_table The GOL matrix of the current generation.
  * @param d_result The resulting GOL matrix of the next generation.
- * @param m_width
  * @param m_height
+ * @param m_width
  * @param m_size
  */
 __global__ void calculate_next_generation(
   uint const *d_table, uint *d_result,
-  uint m_width, uint m_height, uint m_size)
+  uint m_height, uint m_width, uint m_size)
 {
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
@@ -297,13 +297,13 @@ __global__ void calculate_next_generation(
  * @returns Nothing.
  * @param d_table The normal GOL matrix.
  * @param d_utable The output tiled GOL matrix
- * @param m_width
  * @param m_height
+ * @param m_width
  * @param m_size
  */
 __global__ void convert_to_tiled(
   int const *d_table, uint *d_utable,
-  uint m_width, uint m_height, uint m_size)
+  uint m_height, uint m_width, uint m_size)
 {
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
@@ -332,13 +332,13 @@ __global__ void convert_to_tiled(
  * @returns Nothing.
  * @param d_table The output normal GOL matrix.
  * @param d_utable The tiled GOL matrix
- * @param m_width
  * @param m_height
+ * @param m_width
  * @param m_size
  */
 __global__ void convert_from_tiled(
   int *d_table, uint const *d_utable,
-  uint m_width, uint m_height, uint m_size)
+  uint m_height, uint m_width, uint m_size)
 {
   int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
@@ -398,7 +398,10 @@ int main(int argc, char **argv)
    * 1 : 4 bytes = 32 bits
    *
    * cuda-int implementation is 32 times smaller in memory!
-   * */
+   * speed-up is also achieved because of less movement across global, cache,
+   * register and shared memories and because registers and operations in
+   * single-precision GPUs are using 32 bits.
+   **/
   /* Total cells in the tiled GOL matrix. */
   const uint total_elements_tiled = total_elements / (thread_height * thread_width);
   /* The total size of the tiled GOL matrix in bytes. */
@@ -411,6 +414,8 @@ int main(int argc, char **argv)
 
   // Warning! grid and block sizes that correspond to a bigger array will cause leaks
   // these leaks in convert_to and convert_from are currently harmless (no failure)
+  // dim == 1000 == 8 * 5 * 25
+  // dim == 1000 == 4 * 10 * 25
   const dim3 block(10, 5);
   const dim3 grid(25, 25);
 
@@ -443,7 +448,7 @@ int main(int argc, char **argv)
   cudaCheckErrors("copy from host to device memory failed", __FILE__, __LINE__);
 
   convert_to_tiled <<< grid, block >>>(d_table, d_tiled_table,
-                                       m_width, m_height, total_elements_tiled);
+                                       m_height, m_width, total_elements_tiled);
   cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
   // ~ cudaFree((void *) d_table);
@@ -468,7 +473,7 @@ int main(int argc, char **argv)
   //TODO: synchronize here?
   for (int i = 0; i < n_runs; ++i) {
     calculate_next_generation <<< grid, block >>>(
-      d_tiled_table, d_tiled_help, m_width, m_height, total_elements_tiled);
+      d_tiled_table, d_tiled_help, m_height, m_width, total_elements_tiled);
     cudaCheckErrors("calculating next generation failed", __FILE__, __LINE__);
     swap_uint(&d_tiled_table, &d_tiled_help);
   }
@@ -492,7 +497,7 @@ int main(int argc, char **argv)
 
   // convert back to normal representation of the matrix
   convert_from_tiled <<< grid, block >>>(d_table, d_tiled_table,
-                                         m_width, m_height, total_elements_tiled);
+                                         m_height, m_width, total_elements_tiled);
   cudaCheckErrors("failed to convert to normal repr from uint tiled repr", __FILE__, __LINE__);
 
   // transfer memory from resulting matrix from device to host
