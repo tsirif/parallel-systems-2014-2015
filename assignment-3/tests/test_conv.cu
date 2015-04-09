@@ -11,30 +11,6 @@
 
 int tests_run;
 
-void print_table_tiled(uint *A, int N)
-{
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j)
-            printf("%u ", A[i * N + j]);
-
-        printf("\n");
-    }
-
-    printf("\n");
-}
-
-void print_table(int *A, int N)
-{
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j)
-            printf("%d ", A[i * N + j]);
-
-        printf("\n");
-    }
-
-    printf("\n");
-}
-
 uint mem_size;
 uint mem_size_tiled;
 

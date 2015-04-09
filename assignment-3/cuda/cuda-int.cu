@@ -19,11 +19,6 @@
   } while (0)
 
 /**
- * @brief The number of iterations (life generations) over the GOL matrix.
- */
-#define DFL_RUNS 10
-
-/**
  * @brief The width of a tile assigned to a thread.
  */
 #define CONF_WIDTH 8
@@ -477,7 +472,7 @@ int main(int argc, char **argv)
     calculate_next_generation <<< grid, block >>>(
       d_tiled_table, d_tiled_help, m_width, m_height, total_elements_tiled);
     cudaCheckErrors("calculating next generation failed", __FILE__, __LINE__);
-    swap(&d_tiled_table, &d_tiled_help);
+    swap_uint(&d_tiled_table, &d_tiled_help);
   }
 
   // ~ cudaFree((void *) d_tiled_help);

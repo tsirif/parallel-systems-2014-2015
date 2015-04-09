@@ -1,8 +1,17 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdint.h>
 
-#include <cuda_runtime.h>
+typedef uint32_t uint;
+
+/**
+ * @brief The number of iterations (life generations) over the GOL matrix.
+ */
+#define DFL_RUNS 10
 
 #define THRESHOLD 0.4
 
@@ -14,27 +23,19 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-/**
- * @brief Gets last cuda error and if it's not a cudaSuccess
- * prints debug information on stderr and aborts.
- */
-static inline void cudaCheckErrors(char const* msg, char const* filename, int line)
-{
-  do {
-    cudaError_t __err = cudaGetLastError();
-    if (__err != cudaSuccess) {
-      fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n",
-          msg, cudaGetErrorString(__err),
-          filename, line);
-      exit(1);
-    }
-  } while (0);
-}
+#define POS(i, j) (i*N + j)
 
 /* swap 2 int* pointers */
 static inline void swap(int **a, int **b)
 {
   int *t;
+  t = *a;
+  *a = *b;
+  *b = t;
+}
+
+static inline void swap_uint(uint **a, uint **b){
+  uint *t;
   t = *a;
   *a = *b;
   *b = t;
@@ -86,3 +87,5 @@ static void print_table(int *A, int N)
 
   printf("\n");
 }
+
+#endif
