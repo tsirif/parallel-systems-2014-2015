@@ -151,7 +151,7 @@ static const char *test_N_wgen(int (*generator)())
     cudaMemcpy(d_table, table, mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("copy from host to device memory failed", __FILE__, __LINE__);
 
-    convert_to_tiled <<< grid, block >>>(d_table, d_table_tiled, 4, 1, 4);
+    convert_to_tiled <<< grid, block >>>(d_table, d_table_tiled, 1, 4, 4);
     cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
     cudaMemcpy(table_tiled, d_table_tiled, mem_size_tiled, cudaMemcpyDeviceToHost);
@@ -168,7 +168,7 @@ static const char *test_N_wgen(int (*generator)())
         free(msg);
     }
 
-    convert_from_tiled <<< grid, block >>>(d_table, d_table_tiled, 4, 1, 4);
+    convert_from_tiled <<< grid, block >>>(d_table, d_table_tiled, 1, 4, 4);
     cudaCheckErrors("failed to convert to normal repr from uint tiled repr", __FILE__, __LINE__);
 
     cudaMemcpy(table_final, d_table, mem_size, cudaMemcpyDeviceToHost);
