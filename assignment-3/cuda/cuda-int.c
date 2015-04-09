@@ -89,6 +89,8 @@ __global__ void calculate_next_generation(
                  (this_tile >> 9 & 1u) +
                  (t_tile >> 25 & 1u);
 
+#pragma unroll
+
   for (int i = 1; i < 7; ++i) {
     // (x & 1u) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
     this_cell = this_tile >> i & 1u;
@@ -119,6 +121,8 @@ __global__ void calculate_next_generation(
                  ((this_tile >> 9) & 1u) +
                  ((this_tile >> 17) & 1u);
 
+#pragma unroll
+
   for (int i = 9; i < 15; ++i) {
     this_cell = (this_tile >> i) & 1u;
 
@@ -148,6 +152,8 @@ __global__ void calculate_next_generation(
                  ((this_tile >> 9) & 1u) +
                  ((this_tile >> 17) & 1u);
 
+#pragma unroll
+
   for (int i = 17; i < 23; ++i) {
     this_cell = (this_tile >> i) & 1u;
 
@@ -176,6 +182,8 @@ __global__ void calculate_next_generation(
   second_cells = ((this_tile >> 25) & 1u) +
                  ((b_tile >> 1) & 1u) +
                  ((this_tile >> 17) & 1u);
+
+#pragma unroll
 
   for (int i = 25; i < 31; ++i) {
     this_cell = (this_tile >> i) & 1u;
@@ -315,10 +323,10 @@ __global__ void convert_to_tiled(
   int i, j;
 
   for (i = start_i; i < end_i; i += step_i) {
-    for (j = start_j; j < end_j; ++j) {
-      if (d_table[j + i])
-        tile |= place;
+#pragma unroll
 
+    for (j = start_j; j < end_j; ++j) {
+      tile |= (place * d_table[j + i]);
       place <<= 1;
     }
   }
@@ -358,6 +366,7 @@ __global__ void convert_from_tiled(
   }
 }
 
+#ifndef TESTING
 
 /**
  * @brief Main function
@@ -503,3 +512,4 @@ int main(int argc, char **argv)
   // save results to a file
   save_table(table, dim, "cuda-2-results.bin");
 }
+#endif
