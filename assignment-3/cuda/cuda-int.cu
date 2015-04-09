@@ -305,23 +305,21 @@ __global__ void convert_to_tiled(
   int const *d_table, uint *d_utable,
   uint m_width, uint m_height, uint m_size)
 {
-  int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
-  int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
-  int start_i = row * CONF_WIDTH * CONF_HEIGHT;
-  int start_j = col * CONF_WIDTH;
+  const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
+  const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+  const int start_i = row * CONF_WIDTH * CONF_HEIGHT;
+  const int start_j = col * CONF_WIDTH;
   uint place = 1u;
   uint tile = 0u;
 
   const int step_i = m_width * CONF_WIDTH;
   const int end_i = start_i + CONF_HEIGHT * step_i;
   const int end_j = start_j + CONF_WIDTH;
-  int i, j;
 
-  for (i = start_i; i < end_i; i += step_i) {
+  for (int i = start_i; i < end_i; i += step_i) {
 #pragma unroll
-
-    for (j = start_j; j < end_j; ++j) {
-      tile |= (place * d_table[j + i]);
+    for (int j = start_j; j < end_j; ++j) {
+      tile |= place * d_table[j + i];
       place <<= 1;
     }
   }

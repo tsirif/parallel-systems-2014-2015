@@ -140,21 +140,24 @@ static const char *test_N_wgen(int (*generator)())
         for (int i = 0; i < 32; i++) {
             int idx = i + j * 32;
             table[idx] = generator();
-            expected_result[j] += table[idx] << i;
-            // ~ printf("i=%d j=%d idx=%d expected=%u\n", i, j, idx, expected_result[j]);
+            expected_result[i/8] += table[idx] << (i % 8 + j * 8);
+            printf("%d ", table[idx]);
         }
+        printf("\n");
     }
+    for(int i=0; i<4; i++) printf("%u ", expected_result[i]);
+    printf("\n");
 
     cudaMemcpy(d_table, table, mem_size, cudaMemcpyHostToDevice);
     cudaCheckErrors("copy from host to device memory failed", __FILE__, __LINE__);
 
-    convert_to_tiled <<< grid, block >>>(d_table, d_table_tiled, 2, 2, 4);
+    convert_to_tiled <<< grid, block >>>(d_table, d_table_tiled, 4, 1, 4);
     cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
     cudaMemcpy(table_tiled, d_table_tiled, mem_size_tiled, cudaMemcpyDeviceToHost);
     cudaCheckErrors("memcpy to tiled", __FILE__, __LINE__);
 
-    // ~ for (int i = 0; i < 4; i++) printf("%u\n", table_tiled[i]);
+    for (int i = 0; i < 4; i++) printf("%u\n", table_tiled[i]);
 
     for (int i = 0; i < 4; i++) {
         char *msg;
@@ -165,7 +168,7 @@ static const char *test_N_wgen(int (*generator)())
         free(msg);
     }
 
-    convert_from_tiled <<< grid, block >>>(d_table, d_table_tiled, 2, 2, 4);
+    convert_from_tiled <<< grid, block >>>(d_table, d_table_tiled, 4, 1, 4);
     cudaCheckErrors("failed to convert to normal repr from uint tiled repr", __FILE__, __LINE__);
 
     cudaMemcpy(table_final, d_table, mem_size, cudaMemcpyDeviceToHost);
