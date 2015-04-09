@@ -85,12 +85,12 @@ int main(int argc, char **argv)
 #endif  // TEST
     table = (int *) malloc(total_size * sizeof(int));
     help_table = (int *) malloc(total_size * sizeof(int));
-    read_from_file(table, filename, N);
+    read_from_file(table, filename, N, N);
 #ifndef TEST
     printf("Finished reading table\n");
 #endif  // TEST
 #ifdef PRINT
-    print_table(table, N);
+    print_table(table, N, N);
 #endif  // PRINT
     struct timeval startwtime, endwtime;
     gettimeofday (&startwtime, NULL);
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < N_RUNS; ++i) {
         serial_compute();
 #ifdef PRINT
-        print_table(table, N);
+        print_table(table, N, N);
 #endif  // PRINT
     }
 
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     double time = (double)((endwtime.tv_usec - startwtime.tv_usec)
                            / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
     printf("OMP time to run: %f s\n", time);
-    save_table(table, N, "omp-results.bin");
+    save_table(table, N, N, "omp-results.bin");
     free(table);
     free(help_table);
 }

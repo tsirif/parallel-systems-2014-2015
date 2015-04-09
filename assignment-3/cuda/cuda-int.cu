@@ -59,6 +59,12 @@ __global__ void calculate_next_generation(
   const int l_col = (col - 1 + m_width) % m_width;
   const int r_col = (col + 1) % m_width;
 
+#ifdef PRINT
+  printf("Thread %d - %d:\n"
+      "top row: %d, bottom row: %d\n"
+      "left col: %d, right col: %d\n", row, col, t_row, b_row, l_col, r_col);
+#endif  // PRINT
+
   //TODO: write only own tile to shared memory, write some edges of the block in shared memory and then sync and read neighbors from shared memory
   // bring information to local memory (global/cache/registers)
   const uint this_tile = d_table[row + col    ];
@@ -70,6 +76,17 @@ __global__ void calculate_next_generation(
   const uint bl_tile = d_table  [b_row + l_col];
   const uint b_tile = d_table   [b_row + col  ];
   const uint br_tile = d_table  [b_row + r_col];
+
+#ifdef PRINT
+  printf("Thread %d-%d:\n"
+      "tl: %X, t: %X, tr: %X\n"
+      "l: %X, this: %X, r: %X\n"
+      "bl: %X, b: %X, br: %X\n", row, col,
+      tl_tile, t_tile, tr_tile,
+      l_tile, this_tile, r_tile,
+      bl_tile, b_tile, br_tile);
+#endif  // PRINT
+
 
   // build resulting tile in local memory (register)
   uint result_tile = 0;
@@ -92,14 +109,14 @@ __global__ void calculate_next_generation(
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
-                    ((t_tile >> (i + 25)) & 1u);
+      first_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+                    (t_tile >> (i + 25) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
-                     ((t_tile >> (i + 25)) & 1u);
+      second_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+                     (t_tile >> (i + 25) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
@@ -110,11 +127,11 @@ __global__ void calculate_next_generation(
 
   // Update 9 - 14
   first_cells = (this_tile & 1u) +
-                ((this_tile >> 8) & 1u) +
-                ((this_tile >> 16) & 1u);
-  second_cells = ((this_tile >> 1) & 1u) +
-                 ((this_tile >> 9) & 1u) +
-                 ((this_tile >> 17) & 1u);
+                (this_tile >> 8 & 1u) +
+                (this_tile >> 16 & 1u);
+  second_cells = (this_tile >> 1 & 1u) +
+                 (this_tile >> 9 & 1u) +
+                 (this_tile >> 17 & 1u);
 
 #pragma unroll
 
@@ -123,14 +140,14 @@ __global__ void calculate_next_generation(
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
-                    ((this_tile >> (i - 7)) & 1u);
+      first_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+                    (this_tile >> (i - 7) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
-                     ((this_tile >> (i - 7)) & 1u);
+      second_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+                     (this_tile >> (i - 7) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
@@ -140,12 +157,12 @@ __global__ void calculate_next_generation(
   }
 
   // Update 17 - 22
-  first_cells = ((this_tile >> 24) & 1u) +
-                ((this_tile >> 8) & 1u) +
-                ((this_tile >> 16) & 1u);
-  second_cells = ((this_tile >> 25) & 1u) +
-                 ((this_tile >> 9) & 1u) +
-                 ((this_tile >> 17) & 1u);
+  first_cells = (this_tile >> 24 & 1u) +
+                (this_tile >> 8 & 1u) +
+                (this_tile >> 16 & 1u);
+  second_cells = (this_tile >> 25 & 1u) +
+                 (this_tile >> 9 & 1u) +
+                 (this_tile >> 17 & 1u);
 
 #pragma unroll
 
@@ -154,14 +171,14 @@ __global__ void calculate_next_generation(
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
-                    ((this_tile >> (i - 7)) & 1u);
+      first_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+                    (this_tile >> (i - 7) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = ((this_tile >> (i + 1)) & 1u) + ((this_tile >> (i + 9)) & 1u) +
-                     ((this_tile >> (i - 7)) & 1u);
+      second_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+                     (this_tile >> (i - 7) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
@@ -171,28 +188,28 @@ __global__ void calculate_next_generation(
   }
 
   // Update vertical edge 25 - 30
-  first_cells = ((this_tile >> 24) & 1u) +
+  first_cells = (this_tile >> 24 & 1u) +
                 (b_tile & 1u) +
-                ((this_tile >> 16) & 1u);
-  second_cells = ((this_tile >> 25) & 1u) +
-                 ((b_tile >> 1) & 1u) +
-                 ((this_tile >> 17) & 1u);
+                (this_tile >> 16 & 1u);
+  second_cells = (this_tile >> 25 & 1u) +
+                 (b_tile >> 1 & 1u) +
+                 (this_tile >> 17 & 1u);
 
 #pragma unroll
 
   for (int i = 25; i < 31; ++i) {
-    this_cell = (this_tile >> i) & 1u;
+    this_cell = this_tile >> i & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = ((this_tile >> (i - 7)) & 1u) + ((this_tile >> (i + 1)) & 1u) +
-                    ((b_tile >> (i - 23)) & 1u);
+      first_cells = (this_tile >> (i - 7) & 1u) + (this_tile >> (i + 1) & 1u) +
+                    (b_tile >> (i - 23) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = ((this_tile >> (i - 7)) & 1u) + ((this_tile >> (i + 1)) & 1u) +
-                     ((b_tile >> (i - 23)) & 1u);
+      second_cells = (this_tile >> (i - 7) & 1u) + (this_tile >> (i + 1) & 1u) +
+                     (b_tile >> (i - 23) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
@@ -202,91 +219,92 @@ __global__ void calculate_next_generation(
   }
 
   // Update corners 0, 7, 24, 31
+  // Update 0. Needs t, tl, l.
   alive_cells =
     (tl_tile >> 31) +
-    ((t_tile >> 24) & 1u) +
-    ((t_tile >> 25) & 1u) +
-    ((this_tile >> 1) & 1u) +
-    ((this_tile >> 9) & 1u) +
-    ((this_tile >> 8) & 1u) +
-    ((l_tile >> 7) & 1u) +
-    ((l_tile >> 15) & 1u);
+    (t_tile >> 24 & 1u) +
+    (t_tile >> 25 & 1u) +
+    (this_tile >> 1 & 1u) +
+    (this_tile >> 9 & 1u) +
+    (this_tile >> 8 & 1u) +
+    (l_tile >> 7 & 1u) +
+    (l_tile >> 15 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
                                         && (this_tile & 1u)) ? 1u : 0u;
   alive_cells =
-    ((tr_tile >> 24) & 1u) +
-    ((t_tile >> 30) & 1u) +
+    (tr_tile >> 24 & 1u) +
+    (t_tile >> 30 & 1u) +
     (t_tile >> 31) +
-    ((this_tile >> 6) & 1u) +
-    ((this_tile >> 14) & 1u) +
-    ((this_tile >> 15) & 1u) +
+    (this_tile >> 6 & 1u) +
+    (this_tile >> 14 & 1u) +
+    (this_tile >> 15 & 1u) +
     (r_tile & 1u) +
-    ((r_tile >> 8) & 1u);
+    (r_tile >> 8 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 7 & 1u)) ? 1u : 0u;
+                                        && (this_tile >> 7 & 1u)) ? (1u << 7) : 0u;
   alive_cells =
-    ((bl_tile >> 7) & 1u) +
-    (b_tile >> 1u) +
-    ((b_tile >> 1) & 1u) +
-    ((this_tile >> 16) & 1u) +
-    ((this_tile >> 17) & 1u) +
-    ((this_tile >> 25) & 1u) +
-    ((l_tile >> 23) & 1u) +
+    (bl_tile >> 7 & 1u) +
+    (b_tile & 1u) +
+    (b_tile >> 1 & 1u) +
+    (this_tile >> 16 & 1u) +
+    (this_tile >> 17 & 1u) +
+    (this_tile >> 25 & 1u) +
+    (l_tile >> 23 & 1u) +
     (l_tile >> 31);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 24 & 1u)) ? 1u : 0u;
+                                        && (this_tile >> 24 & 1u)) ? (1u << 24) : 0u;
   alive_cells =
     (br_tile & 1u) +
-    ((b_tile >> 6) & 1u) + ((b_tile >> 7) & 1u) +
-    ((this_tile >> 22) & 1u) + ((this_tile >> 23) & 1u) + ((this_tile >> 30) & 1u) +
-    ((r_tile >> 16) & 1u) + ((r_tile >> 24) & 1u);
+    (b_tile >> 6 & 1u) + (b_tile >> 7 & 1u) +
+    (this_tile >> 22 & 1u) + (this_tile >> 23 & 1u) + (this_tile >> 30 & 1u) +
+    (r_tile >> 16 & 1u) + (r_tile >> 24 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 31)) ? 1u : 0u;
+                                        && (this_tile >> 31)) ? (1u << 31) : 0u;
 
-  // Update horizontal edges 8, 16, 15, 23
+  // Update vertical edges 8, 16, 15, 23
   alive_cells =
     (this_tile & 1u) +
-    ((this_tile >> 16) & 1u) +
-    ((this_tile >> 1) & 1u) +
-    ((this_tile >> 9) & 1u) +
-    ((this_tile >> 17) & 1u) +
-    ((l_tile >> 7) & 1u) +
-    ((l_tile >> 15) & 1u) +
-    ((l_tile >> 23) & 1u);
+    (this_tile >> 16 & 1u) +
+    (this_tile >> 1 & 1u) +
+    (this_tile >> 9 & 1u) +
+    (this_tile >> 17 & 1u) +
+    (l_tile >> 7 & 1u) +
+    (l_tile >> 15 & 1u) +
+    (l_tile >> 23 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 8 & 1u)) ? 1u : 0u;
+                                        && (this_tile >> 8 & 1u)) ? (1u << 8) : 0u;
   alive_cells =
-    ((this_tile >> 8) & 1u) +
-    ((this_tile >> 24) & 1u) +
-    ((this_tile >> 9) & 1u) +
-    ((this_tile >> 17) & 1u) +
-    ((this_tile >> 25) & 1u) +
+    (this_tile >> 8 & 1u) +
+    (this_tile >> 24 & 1u) +
+    (this_tile >> 9 & 1u) +
+    (this_tile >> 17 & 1u) +
+    (this_tile >> 25 & 1u) +
     (l_tile >> 31) +
-    ((l_tile >> 15) & 1u) +
-    ((l_tile >> 23) & 1u);
+    (l_tile >> 15 & 1u) +
+    (l_tile >> 23 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 16 & 1u)) ? 1u : 0u;
+                                        && (this_tile >> 16 & 1u)) ? (1u << 16) : 0u;
   alive_cells =
-    ((this_tile >> 7) & 1u) +
-    ((this_tile >> 23) & 1u) +
-    ((this_tile >> 6) & 1u) +
-    ((this_tile >> 14) & 1u) +
-    ((this_tile >> 22) & 1u) +
+    (this_tile >> 7 & 1u) +
+    (this_tile >> 23 & 1u) +
+    (this_tile >> 6 & 1u) +
+    (this_tile >> 14 & 1u) +
+    (this_tile >> 22 & 1u) +
     (r_tile & 1u) +
-    ((r_tile >> 8) & 1u) +
-    ((l_tile >> 16) & 1u);
+    (r_tile >> 8 & 1u) +
+    (l_tile >> 16 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 15 & 1u)) ? 1u : 0u;
+                                        && (this_tile >> 15 & 1u)) ? (1u << 15) : 0u;
   alive_cells =
-    ((this_tile >> 15) & 1u) +
+    (this_tile >> 15 & 1u) +
     (this_tile >> 31) +
-    ((this_tile >> 30) & 1u) +
-    ((this_tile >> 14) & 1u) +
-    ((this_tile >> 22) & 1u) +
-    ((r_tile >> 24) & 1u) +
-    ((r_tile >> 8) & 1u) + (l_tile >> 16 & 1u);
+    (this_tile >> 30 & 1u) +
+    (this_tile >> 14 & 1u) +
+    (this_tile >> 22 & 1u) +
+    (r_tile >> 24 & 1u) +
+    (r_tile >> 8 & 1u) + (l_tile >> 16 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 23 & 1u)) ? 1u : 0u;
+                                        && (this_tile >> 23 & 1u)) ? (1u << 23) : 0u;
 
   // send result but to global memory
   d_result[row + col] = result_tile;
@@ -416,16 +434,19 @@ int main(int argc, char **argv)
   // these leaks in convert_to and convert_from are currently harmless (no failure)
   // dim == 1000 == 8 * 5 * 25
   // dim == 1000 == 4 * 10 * 25
-  const dim3 block(10, 5);
-  const dim3 grid(25, 25);
+  const dim3 block(2, 1);
+  const dim3 grid(1, 1);
 
   char *filename = argv[1];
   // initialize and parse the matrix out of the file
   int *table;
   printf("Reading %dx%d table from file %s\n", dim, dim, filename);
-  table = (int *) malloc(mem_size);
-  read_from_file(table, filename, dim);
+  table = (int*) malloc(mem_size);
+  read_from_file(table, filename, dim, dim);
   printf("Finished reading table\n");
+#ifdef PRINT
+  print_table(table, dim, dim);
+#endif  // PRINT
 
   /******************************************************************************
    *                              Table Conversion                              *
@@ -508,6 +529,10 @@ int main(int argc, char **argv)
   cudaDeviceReset();
 
   // save results to a file
-  save_table(table, dim, "cuda-2-results.bin");
+  save_table(table, dim, dim, "cuda-2-results.bin");
+#ifdef PRINT
+  print_table(table, dim, dim);
+#endif  // PRINT
+  free((void*) table);
 }
-#endif
+#endif  // TESTING
