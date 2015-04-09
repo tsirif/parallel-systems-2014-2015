@@ -1,74 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <cuda_runtime.h>
-#include <stdint.h>
+#define TESTING
+#include "../cuda/cuda-int.c"
 
-typedef uint32_t uint;
+#define mu_assert(message, test) do { if (!(test)) return message; } while (0)
+#define mu_run_test(test) do { const char *message = test(); tests_run++; \
+        if (message) return message; } while (0)
 
-#define CONF_WIDTH 8
-#define CONF_HEIGHT 4
-
-#define cudaCheckErrors(msg, yolo, yolo2) \
-    do { \
-        cudaError_t __err = cudaGetLastError(); \
-        if (__err != cudaSuccess) { \
-            fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \
-                    msg, cudaGetErrorString(__err), \
-                    __FILE__, __LINE__); \
-            exit(1); \
-        } \
-    } while (0)
-
-__global__ void convert_to_tiled(
-    int const *d_table, uint *d_utable,
-    uint m_width, uint m_height, uint m_size)
-{
-    int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
-    int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
-    int start_i = row * CONF_WIDTH * CONF_HEIGHT;
-    int start_j = col * CONF_WIDTH;
-    uint place = 1u;
-    uint tile = 0u;
-
-    const int step_i = m_width * CONF_WIDTH;
-    const int end_i = start_i + CONF_HEIGHT * step_i;
-    const int end_j = start_j + CONF_WIDTH;
-    int i, j;
-
-    for (i = start_i; i < end_i; i += step_i) {
-        for (j = start_j; j < end_j; ++j) {
-            if (d_table[j + i])
-                tile |= place;
-
-            place <<= 1;
-        }
-    }
-
-    d_utable[col + row] = tile;
-}
-
-__global__ void convert_from_tiled(
-    int *d_table, uint const *d_utable,
-    uint m_width, uint m_height, uint m_size)
-{
-    int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
-    int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
-    int start_i = row * CONF_WIDTH * CONF_HEIGHT;
-    int start_j = col * CONF_WIDTH;
-    int place = 0;
-
-    const uint tile = d_utable[col + row];
-
-    const int step_i = m_width * CONF_WIDTH;
-    const int end_i = start_i + CONF_HEIGHT * step_i;
-    const int end_j = start_j + CONF_WIDTH;
-    int i, j;
-
-    for (i = start_i; i < end_i; i += step_i) {
-        for (j = start_j; j < end_j; ++j)
-            d_table[j + i] = (int) (tile >> place++ & 1u);
-    }
-}
+int tests_run;
 
 void print_table_tiled(uint *A, int N)
 {
@@ -94,25 +31,41 @@ void print_table(int *A, int N)
     printf("\n");
 }
 
+uint mem_size;
+uint mem_size_tiled;
+int *table;
+uint *table_tiled;
+uint *d_table_tiled;
+int *d_table;
+int *table_final;
 
-int main()
+static void init()
 {
-    const uint mem_size = 32 * sizeof(int);
-    const uint mem_size_tiled = sizeof(uint);
+    table = NULL;
+    table_tiled = NULL;
+    d_table_tiled = NULL;
+    d_table = NULL;
+    table_final = NULL;
+}
+
+
+static const char *test_zeros_to()
+{
+
+    mem_size = 32 * sizeof(int);
+    mem_size_tiled = sizeof(uint);
 
     const dim3 grid(1, 1);
     const dim3 block(1, 1);
 
-    int *table;
-    uint *table_tiled;
-    uint *d_table_tiled;
-    int *d_table;
+    table = (int *) realloc(table, mem_size);
+    table_tiled = (uint *) realloc(table_tiled, mem_size_tiled);
+    table_final = (int *) realloc(table_final, mem_size);
 
-    table = (int *) malloc(mem_size);
+    for (int i = 0; i < 32; i++) table[i] = 0;
 
-    srand(time(NULL));
-
-    for (int i = 0; i < 32; i++) table[i] = ( (float)rand() / (float)RAND_MAX ) < 0.4;
+    cudaFree(d_table);
+    cudaFree(d_table_tiled);
 
     cudaMalloc((void **) &d_table,  mem_size);
     cudaCheckErrors("device allocation of GOL matrix failed", __FILE__, __LINE__);
@@ -126,29 +79,51 @@ int main()
     convert_to_tiled <<< grid, block >>>(d_table, d_table_tiled, 1, 1, 1);
     cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
-
-    table_tiled = (uint *)malloc(mem_size_tiled);
     cudaMemcpy(table_tiled, d_table_tiled, mem_size_tiled, cudaMemcpyDeviceToHost);
-    cudaCheckErrors("memcpy1", __FILE__, __LINE__);
-    // ~ print_table_tiled(table_tiled, 1);
-    printf("%u\n%x\n", table_tiled[0], table_tiled[0]);
+    cudaCheckErrors("memcpy to tiled", __FILE__, __LINE__);
+
+    mu_assert("Unexpected tiled value!", table_tiled[0] == 0);
 
     convert_from_tiled <<< grid, block >>>(d_table, d_table_tiled, 1, 1, 1);
     cudaCheckErrors("failed to convert to normal repr from uint tiled repr", __FILE__, __LINE__);
 
-    int *table_final;
-    table_final = (int *) malloc(mem_size);
-
     cudaMemcpy(table_final, d_table, mem_size, cudaMemcpyDeviceToHost);
-    cudaCheckErrors("memcpy1", __FILE__, __LINE__);
-
-    for (int i = 0; i < 32; i++) printf("%d ", table_final[i]);
-
-    printf("\n");
+    cudaCheckErrors("memcpy to final", __FILE__, __LINE__);
 
     int result = 1;
 
     for (int i = 0; i < 32; i++) result &= (table_final[i] == table[i]);
 
-    printf("equality result: %d\n", result);
+    mu_assert("Initial and final array differ!", result);
+
+    return 0;
+}
+
+static const char *all_tests(){
+    mu_run_test(test_zeros_to);
+    return 0;
+}
+
+int main()
+{
+
+    init();
+    const char *result = all_tests();
+
+    if (result != 0)
+        printf("%s\n", result);
+    else
+        printf("ALL TESTS PASSED\n");
+
+    printf("Tests run: %d\n", tests_run);
+
+    return result != 0;
+
+
+    // ~ srand(time(NULL));
+    // ~ for (int i = 0; i < 32; i++) table[i] = ( (float)rand() / (float)RAND_MAX ) < 0.4;
+    // ~ printf("%u\n%x\n", table_tiled[0], table_tiled[0]);
+    // ~ for (int i = 0; i < 32; i++) printf("%d ", table_final[i]);
+    // ~ printf("\n");
+
 }
