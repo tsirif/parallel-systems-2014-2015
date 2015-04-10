@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <cuda_runtime.h>
+#include <stdint.h>
 #include "../utils/utils.h"
 
 /**
@@ -19,14 +20,21 @@
     } \
   } while (0)
 
-/**
- * @brief The width of a tile assigned to a thread.
- */
+#ifdef DOUBLE
+#define CONF_HEIGHT 8
 #define CONF_WIDTH 8
+  typedef uint64_t uint;
+#else
 /**
- * @brief The height of a tile assigned to a thread.
- */
+* @brief The height of a tile assigned to a thread.
+*/
 #define CONF_HEIGHT 4
+/**
+* @brief The width of a tile assigned to a thread.
+*/
+#define CONF_WIDTH 8
+  typedef uint32_t uint;
+#endif
 
 // TODO: a conversion between the two grid of life representations
 // int per cell <-> uint per 32 cells in the following configuration
@@ -93,6 +101,9 @@ __global__ void calculate_next_generation(
 
 
   // build resulting tile in local memory (register)
+  int tr = CONF_WIDTH - 1;
+  int bl = CONF_WIDTH * (CONF_HEIGHT - 1), br = CONF_WIDTH * CONF_HEIGHT - 1;
+  int i = 0, j = 0;
   uint result_tile = 0;
   uint alive_cells;
   uint first_cells, second_cells;
@@ -100,34 +111,33 @@ __global__ void calculate_next_generation(
   // if we represent a 8x4 array A as int then we can access position [i,j] of the array like this:
   //(A >> (i + 8 * j) & 1u)
 
-  // Update vertical edge 1 - 6
+  // Update first horizontal row
   first_cells = (this_tile & 1u) +
-                (this_tile >> 8 & 1u) +
-                (t_tile >> 24 & 1u);
+                (this_tile >> CONF_WIDTH & 1u) +
+                (t_tile >> bl & 1u);
   second_cells = (this_tile >> 1 & 1u) +
-                 (this_tile >> 9 & 1u) +
-                 (t_tile >> 25 & 1u);
+                 (this_tile >> (CONF_WIDTH + 1) & 1u) +
+                 (t_tile >> (bl + 1) & 1u);
   //TODO: IDEA: replace (x >> p & 1) with ((x & (2**p)) != 0)
   //TODO: pragma unroll probably doesn't cause any problems. reenable it after code works correctly.
-  // ~ #pragma unroll
-
   //TODO: IDEA: instead of having an if statement inside the loop have first_cells and seconds_cells in an array[2]
-  for (int i = 1; i < 7; ++i) {
+  // ~ #pragma unroll
+  for (i = 1; i < CONF_WIDTH - 1; ++i) {
     uint this_cell = this_tile >> i & 1u;
 
     // (x & 1u) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
     if (i & 1u) {
       alive_cells = first_cells;
       first_cells = (this_tile >> (i + 1) & 1u) +
-                    (this_tile >> (i + 9) & 1u) +
-                    (t_tile >> (i + 25) & 1u);
+                    (this_tile >> (i + CONF_WIDTH + 1) & 1u) +
+                    (t_tile >> (i + bl + 1) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
       second_cells = (this_tile >> (i + 1) & 1u) +
-                     (this_tile >> (i + 9) & 1u) +
-                     (t_tile >> (i + 25) & 1u);
+                     (this_tile >> (i + CONF_WIDTH + 1) & 1u) +
+                     (t_tile >> (i + bl + 1) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
@@ -138,101 +148,123 @@ __global__ void calculate_next_generation(
                                           && this_cell) ? (1u << i) : 0u;
   }
 
-  // Update 9 - 14
-  first_cells = (this_tile & 1u) +
-                (this_tile >> 8 & 1u) +
-                (this_tile >> 16 & 1u);
-  second_cells = (this_tile >> 1 & 1u) +
-                 (this_tile >> 9 & 1u) +
-                 (this_tile >> 17 & 1u);
+  // Update cells in the middle
+  for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_HEIGHT; j += CONF_WIDTH) {
+    start_i = j + 1;
+    end_i = j + CONF_WIDTH - 1;
+    first_cells = (this_tile >> (j - CONF_WIDTH) & 1u) +
+                  (this_tile >> j & 1u) +
+                  (this_tile >> (j + CONF_WIDTH) & 1u);
+    second_cells = (this_tile >> (j + 1 - CONF_WIDTH) & 1u) +
+                  (this_tile >> (j + 1) & 1u) +
+                  (this_tile >> (j + 1 + CONF_WIDTH) & 1u);
+    // ~ #pragma unroll
+    for (i = start_i; i < end_i; ++i) {
+      uint this_cell = (this_tile >> i) & 1u;
+      if (i & 1u) {
+        alive_cells = first_cells;
+        first_cells = (this_tile >> (i + 1) & 1u) +
+                      (this_tile >> (i + 1 + CONF_WIDTH) & 1u) +
+                      (this_tile >> (i + 1 - CONF_WIDTH) & 1u);
+        alive_cells += first_cells;
+        alive_cells += second_cells - this_cell;
+      } else {
+        alive_cells = second_cells;
+        second_cells = (this_tile >> (i + 1) & 1u) +
+                      (this_tile >> (i + 1 + CONF_WIDTH) & 1u) +
+                      (this_tile >> (i + 1 - CONF_WIDTH) & 1u);
+        alive_cells += second_cells;
+        alive_cells += first_cells - this_cell;
+      }
 
-  // ~ #pragma unroll
-
-  for (int i = 9; i < 15; ++i) {
-    uint this_cell = (this_tile >> i) & 1u;
-
-    if (i & 1u) {
-      alive_cells = first_cells;
-      first_cells = (this_tile >> (i + 1) & 1u) +
-                    (this_tile >> (i + 9) & 1u) +
-                    (this_tile >> (i - 7) & 1u);
-      alive_cells += first_cells;
-      alive_cells += second_cells - this_cell;
-    } else {
-      alive_cells = second_cells;
-      second_cells = (this_tile >> (i + 1) & 1u) +
-                     (this_tile >> (i + 9) & 1u) +
-                     (this_tile >> (i - 7) & 1u);
-      alive_cells += second_cells;
-      alive_cells += first_cells - this_cell;
+      result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                            && this_cell) ? (1u << i) : 0u;
     }
-
-    result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                          && this_cell) ? (1u << i) : 0u;
   }
 
-  // Update 17 - 22
-  first_cells = (this_tile >> 24 & 1u) +
-                (this_tile >> 8 & 1u) +
-                (this_tile >> 16 & 1u);
-  second_cells = (this_tile >> 25 & 1u) +
-                 (this_tile >> 9 & 1u) +
-                 (this_tile >> 17 & 1u);
-
+  // Update last horizontal row
+  start_i = j + 1;
+  end_i = j + CONF_WIDTH - 1;
+  first_cells = (this_tile >> (j - CONF_WIDTH) & 1u) +
+                (this_tile >> j & 1u) +
+                (b_tile & 1u);
+  second_cells = (this_tile >> (j - CONF_WIDTH + 1) & 1u) +
+                (this_tile >> (j + 1) & 1u) +
+                (b_tile >> 1 & 1u);
   // ~ #pragma unroll
-
-  for (int i = 17; i < 23; ++i) {
+  for (i = start_i; i < end_i; ++i) {
     uint this_cell = (this_tile >> i) & 1u;
-
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i + 1) & 1u) +
-                    (this_tile >> (i + 9) & 1u) +
-                    (this_tile >> (i - 7) & 1u);
-      alive_cells += first_cells;
-      alive_cells += second_cells - this_cell;
-    } else {
-      alive_cells = second_cells;
-      second_cells = (this_tile >> (i + 1) & 1u) +
-                     (this_tile >> (i + 9) & 1u) +
-                     (this_tile >> (i - 7) & 1u);
-      alive_cells += second_cells;
-      alive_cells += first_cells - this_cell;
-    }
-
-    result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                          && this_cell) ? (1u << i) : 0u;
-  }
-
-  // Update vertical edge 25 - 30
-  first_cells = (this_tile >> 24 & 1u) +
-                (b_tile & 1u) +
-                (this_tile >> 16 & 1u);
-  second_cells = (this_tile >> 25 & 1u) +
-                 (b_tile >> 1 & 1u) +
-                 (this_tile >> 17 & 1u);
-
-  // ~ #pragma unroll
-
-  for (int i = 25; i < 31; ++i) {
-    uint this_cell = this_tile >> i & 1u;
-
-    if (i & 1u) {
-      alive_cells = first_cells;
-      first_cells = (this_tile >> (i - 7) & 1u) +
+      first_cells = (this_tile >> (i - CONF_WIDTH + 1) & 1u) +
                     (this_tile >> (i + 1) & 1u) +
-                    (b_tile >> (i - 23) & 1u);
+                    (b_tile >> (i - j + 1) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i - 7) & 1u) +
-                     (this_tile >> (i + 1) & 1u) +
-                     (b_tile >> (i - 23) & 1u);
+      second_cells = (this_tile >> (i - CONF_WIDTH + 1) & 1u) +
+                    (this_tile >> (i + 1) & 1u) +
+                    (b_tile >> (i - j + 1) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
+    result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                          && this_cell) ? (1u << i) : 0u;
+  }
 
+  // Update vertical col to the left
+  first_cells = (l_tile >> tr & 1u) +
+                (this_tile & 1u) +
+                (this_tile >> 1 & 1u);
+  second_cells = (l_tile >> (tr + CONF_WIDTH) & 1u) +
+                 (this_tile >> CONF_WIDTH & 1u) +
+                 (this_tile >> (CONF_WIDTH + 1) & 1u);
+  for (i = CONF_WIDTH; i < (CONF_HEIGHT - 1) * CONF_WIDTH; i += CONF_WIDTH) {
+    uint this_cell = this_tile >> i & 1u;
+    if ((i/CONF_WIDTH) & 1u) {
+      alive_cells = first_cells;
+      first_cells = (l_tile >> (i + 2 * CONF_WIDTH - 1) & 1u) +
+                    (this_tile >> (i + CONF_WIDTH) & 1u) +
+                    (this_tile >> (i + CONF_WIDTH + 1) & 1u);
+      alive_cells += first_cells;
+      alive_cells += second_cells - this_cell;
+    } else {
+      alive_cells = second_cells;
+      second_cells = (l_tile >> (i + 2 * CONF_WIDTH - 1) & 1u) +
+                    (this_tile >> (i + CONF_WIDTH) & 1u) +
+                    (this_tile >> (i + CONF_WIDTH + 1) & 1u);
+      alive_cells += second_cells;
+      alive_cells += first_cells - this_cell;
+    }
+    result_tile |= (alive_cells == 3) || (alive_cells == 2
+                                          && this_cell) ? (1u << i) : 0u;
+  }
+
+  // Update vertical col to the right
+  first_cells = (this_tile >> (tr - 1) & 1u) +
+                (this_tile >> tr & 1u) +
+                (r_tile & 1u);
+  second_cells = (this_tile >> (tr + CONF_WIDTH - 1) & 1u) +
+                 (this_tile >> (tr + CONF_WIDTH) & 1u) +
+                 (r_tile >> (tr + 1) & 1u);
+  for (i = 2 * CONF_WIDTH - 1 ; i < CONF_HEIGHT * CONF_WIDTH - 1; i += CONF_WIDTH) {
+    uint this_cell = this_tile >> i & 1u;
+    if (((i+1)/CONF_WIDTH) & 1u) {
+      alive_cells = second_cells;
+      second_cells = (this_tile >> (i + CONF_WIDTH - 1) & 1u) +
+                    (this_tile >> (i + CONF_WIDTH) & 1u) +
+                    (r_tile >> (i + 1) & 1u);
+      alive_cells += second_cells;
+      alive_cells += first_cells - this_cell;
+    } else {
+      alive_cells = first_cells;
+      first_cells = (this_tile >> (i + CONF_WIDTH - 1) & 1u) +
+                    (this_tile >> (i + CONF_WIDTH) & 1u) +
+                    (r_tile >> (i + 1) & 1u);
+      alive_cells += first_cells;
+      alive_cells += second_cells - this_cell;
+    }
     result_tile |= (alive_cells == 3) || (alive_cells == 2
                                           && this_cell) ? (1u << i) : 0u;
   }
@@ -241,91 +273,49 @@ __global__ void calculate_next_generation(
   // Update 0. Needs t, tl, l.
   //TODO: use ILP? http://en.wikipedia.org/wiki/Instruction-level_parallelism
   alive_cells =
-    (tl_tile >> 31) +
-    (t_tile >> 24 & 1u) +
-    (t_tile >> 25 & 1u) +
+    (tl_tile >> br) +
+    (t_tile >> bl & 1u) +
+    (t_tile >> (bl + 1) & 1u) +
     (this_tile >> 1 & 1u) +
-    (this_tile >> 9 & 1u) +
-    (this_tile >> 8 & 1u) +
-    (l_tile >> 7 & 1u) +
-    (l_tile >> 15 & 1u);
+    (this_tile >> (CONF_WIDTH + 1) & 1u) +
+    (this_tile >> CONF_WIDTH & 1u) +
+    (l_tile >> tr & 1u) +
+    (l_tile >> (tr + CONF_WIDTH) & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
                                         && (this_tile & 1u)) ? 1u : 0u;
   alive_cells =
-    (tr_tile >> 24 & 1u) +
-    (t_tile >> 30 & 1u) +
-    (t_tile >> 31) +
-    (this_tile >> 6 & 1u) +
-    (this_tile >> 14 & 1u) +
-    (this_tile >> 15 & 1u) +
+    (tr_tile >> bl & 1u) +
+    (t_tile >> (br - 1) & 1u) +
+    (t_tile >> br) +
+    (this_tile >> (tr - 1) & 1u) +
+    (this_tile >> (tr + CONF_WIDTH - 1) & 1u) +
+    (this_tile >> (tr + CONF_WIDTH) & 1u) +
     (r_tile & 1u) +
-    (r_tile >> 8 & 1u);
+    (r_tile >> CONF_WIDTH & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 7 & 1u)) ? (1u << 7) : 0u;
+                                        && (this_tile >> tr & 1u)) ? (1u << tr) : 0u;
   alive_cells =
-    (bl_tile >> 7 & 1u) +
+    (bl_tile >> tr & 1u) +
     (b_tile & 1u) +
     (b_tile >> 1 & 1u) +
-    (this_tile >> 16 & 1u) +
-    (this_tile >> 17 & 1u) +
-    (this_tile >> 25 & 1u) +
-    (l_tile >> 23 & 1u) +
-    (l_tile >> 31);
+    (this_tile >> (bl - CONF_WIDTH) & 1u) +
+    (this_tile >> (bl - CONF_WIDTH + 1) & 1u) +
+    (this_tile >> (bl + 1) & 1u) +
+    (l_tile >> (br - CONF_WIDTH) & 1u) +
+    (l_tile >> br);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 24 & 1u)) ? (1u << 24) : 0u;
+                                        && (this_tile >> bl & 1u)) ? (1u << bl) : 0u;
   alive_cells =
     (br_tile & 1u) +
-    (b_tile >> 6 & 1u) + (b_tile >> 7 & 1u) +
-    (this_tile >> 22 & 1u) + (this_tile >> 23 & 1u) + (this_tile >> 30 & 1u) +
-    (r_tile >> 16 & 1u) + (r_tile >> 24 & 1u);
+    (b_tile >> (tr - 1) & 1u) +
+    (b_tile >> tr & 1u) +
+    (this_tile >> (br - CONF_WIDTH - 1) & 1u) +
+    (this_tile >> (br - CONF_WIDTH) & 1u) +
+    (this_tile >> (br - 1) & 1u) +
+    (r_tile >> (bl - CONF_WIDTH) & 1u) +
+    (r_tile >> bl & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 31)) ? (1u << 31) : 0u;
-
-  // Update vertical edges 8, 16, 15, 23
-  alive_cells =
-    (this_tile & 1u) +
-    (this_tile >> 16 & 1u) +
-    (this_tile >> 1 & 1u) +
-    (this_tile >> 9 & 1u) +
-    (this_tile >> 17 & 1u) +
-    (l_tile >> 7 & 1u) +
-    (l_tile >> 15 & 1u) +
-    (l_tile >> 23 & 1u);
-  result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 8 & 1u)) ? (1u << 8) : 0u;
-  alive_cells =
-    (this_tile >> 8 & 1u) +
-    (this_tile >> 24 & 1u) +
-    (this_tile >> 9 & 1u) +
-    (this_tile >> 17 & 1u) +
-    (this_tile >> 25 & 1u) +
-    (l_tile >> 31) +
-    (l_tile >> 15 & 1u) +
-    (l_tile >> 23 & 1u);
-  result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 16 & 1u)) ? (1u << 16) : 0u;
-  alive_cells =
-    (this_tile >> 7 & 1u) +
-    (this_tile >> 23 & 1u) +
-    (this_tile >> 6 & 1u) +
-    (this_tile >> 14 & 1u) +
-    (this_tile >> 22 & 1u) +
-    (r_tile & 1u) +
-    (r_tile >> 8 & 1u) +
-    (r_tile >> 16 & 1u);
-  result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 15 & 1u)) ? (1u << 15) : 0u;
-  alive_cells =
-    (this_tile >> 15 & 1u) +
-    (this_tile >> 31) +
-    (this_tile >> 30 & 1u) +
-    (this_tile >> 14 & 1u) +
-    (this_tile >> 22 & 1u) +
-    (r_tile >> 24 & 1u) +
-    (r_tile >> 8 & 1u) +
-    (r_tile >> 16 & 1u);
-  result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> 23 & 1u)) ? (1u << 23) : 0u;
+                                        && (this_tile >> br)) ? (1u << br) : 0u;
 
   // send result but to global memory
   d_result[row + col] = result_tile;

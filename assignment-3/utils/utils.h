@@ -6,7 +6,7 @@
 #include <time.h>
 #include <stdint.h>
 
-typedef uint32_t uint;
+typedef uint32_t unsigned int;
 
 /**
  * @brief The number of iterations (life generations) over the GOL matrix.
@@ -34,8 +34,8 @@ static inline void swap(int **a, int **b)
   *b = t;
 }
 
-static inline void swap_uint(uint **a, uint **b){
-  uint *t;
+static inline void swap_uint(unsigned int **a, unsigned int **b){
+  unsigned int *t;
   t = *a;
   *a = *b;
   *b = t;
