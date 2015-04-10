@@ -55,18 +55,19 @@ __global__ void calculate_next_generation(
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
-  if (row + col >= m_size) return;
+  if (row >= m_size) return;
+  if (col >= m_width) return;
 
   const int t_row = (row - m_width + m_size) % m_size;
   const int b_row = (row + m_width) % m_size;
   const int l_col = (col - 1 + m_width) % m_width;
   const int r_col = (col + 1) % m_width;
 
-  // ~ #ifdef PRINT
-  // ~ printf("Thread %d - %d:\n"
-  // ~ "top row: %d, bottom row: %d\n"
-  // ~ "left col: %d, right col: %d\n", row, col, t_row, b_row, l_col, r_col);
-  // ~ #endif  // PRINT
+#ifdef PRINT
+  printf("Thread %d - %d:\n"
+  "top row: %d, bottom row: %d\n"
+  "left col: %d, right col: %d\n", row, col, t_row, b_row, l_col, r_col);
+#endif  // PRINT
 
   //TODO: write only own tile to shared memory, write some edges of the block in shared memory and then sync and read neighbors from shared memory
   // bring information to local memory (global/cache/registers)
@@ -80,15 +81,15 @@ __global__ void calculate_next_generation(
   const uint b_tile = d_table   [b_row + col  ];
   const uint br_tile = d_table  [b_row + r_col];
 
-  // ~ #ifdef PRINT
-  // ~ printf("Thread %d-%d:\n"
-  // ~ "tl: %X, t: %X, tr: %X\n"
-  // ~ "l: %X, this: %X, r: %X\n"
-  // ~ "bl: %X, b: %X, br: %X\n", row, col,
-  // ~ tl_tile, t_tile, tr_tile,
-  // ~ l_tile, this_tile, r_tile,
-  // ~ bl_tile, b_tile, br_tile);
-  // ~ #endif  // PRINT
+#ifdef PRINT
+  printf("Thread %d-%d:\n"
+  "tl: %X, t: %X, tr: %X\n"
+  "l: %X, this: %X, r: %X\n"
+  "bl: %X, b: %X, br: %X\n", row, col,
+  tl_tile, t_tile, tr_tile,
+  l_tile, this_tile, r_tile,
+  bl_tile, b_tile, br_tile);
+#endif  // PRINT
 
 
   // build resulting tile in local memory (register)
@@ -346,7 +347,8 @@ __global__ void convert_to_tiled(
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
-  if (row + col >= m_size) return;
+  if (row >= m_size) return;
+  if (col >= m_width) return;
 
   const int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   const int start_j = col * CONF_WIDTH;
@@ -385,7 +387,8 @@ __global__ void convert_from_tiled(
   int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
-  if (row + col >= m_size) return;
+  if (row >= m_size) return;
+  if (col >= m_width) return;
 
   int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   int start_j = col * CONF_WIDTH;
@@ -484,7 +487,7 @@ int main(int argc, char **argv)
     do {
       y >>= 1;
     } while(y >= m_width);
-    block = dim3(x, y)
+    block = dim3(x, y);
     grid = dim3((int)(ceil(m_height/(float)x)), (int)(ceil(m_width/(float)y)));
   }
 
