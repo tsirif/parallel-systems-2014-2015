@@ -54,16 +54,18 @@ __global__ void calculate_next_generation(
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
+  if (row + col >= m_size) return;
+
   const int t_row = (row - m_width + m_size) % m_size;
   const int b_row = (row + m_width) % m_size;
   const int l_col = (col - 1 + m_width) % m_width;
   const int r_col = (col + 1) % m_width;
 
-#ifdef PRINT
-  printf("Thread %d - %d:\n"
-      "top row: %d, bottom row: %d\n"
-      "left col: %d, right col: %d\n", row, col, t_row, b_row, l_col, r_col);
-#endif  // PRINT
+  // ~ #ifdef PRINT
+  // ~ printf("Thread %d - %d:\n"
+  // ~ "top row: %d, bottom row: %d\n"
+  // ~ "left col: %d, right col: %d\n", row, col, t_row, b_row, l_col, r_col);
+  // ~ #endif  // PRINT
 
   //TODO: write only own tile to shared memory, write some edges of the block in shared memory and then sync and read neighbors from shared memory
   // bring information to local memory (global/cache/registers)
@@ -77,21 +79,21 @@ __global__ void calculate_next_generation(
   const uint b_tile = d_table   [b_row + col  ];
   const uint br_tile = d_table  [b_row + r_col];
 
-#ifdef PRINT
-  printf("Thread %d-%d:\n"
-      "tl: %X, t: %X, tr: %X\n"
-      "l: %X, this: %X, r: %X\n"
-      "bl: %X, b: %X, br: %X\n", row, col,
-      tl_tile, t_tile, tr_tile,
-      l_tile, this_tile, r_tile,
-      bl_tile, b_tile, br_tile);
-#endif  // PRINT
+  // ~ #ifdef PRINT
+  // ~ printf("Thread %d-%d:\n"
+  // ~ "tl: %X, t: %X, tr: %X\n"
+  // ~ "l: %X, this: %X, r: %X\n"
+  // ~ "bl: %X, b: %X, br: %X\n", row, col,
+  // ~ tl_tile, t_tile, tr_tile,
+  // ~ l_tile, this_tile, r_tile,
+  // ~ bl_tile, b_tile, br_tile);
+  // ~ #endif  // PRINT
 
 
   // build resulting tile in local memory (register)
   uint result_tile = 0;
-  uint alive_cells = 0;
-  uint first_cells, second_cells, this_cell;
+  uint alive_cells;
+  uint first_cells, second_cells;
 
   // Update vertical edge 1 - 6
   first_cells = (this_tile & 1u) +
@@ -100,27 +102,33 @@ __global__ void calculate_next_generation(
   second_cells = (this_tile >> 1 & 1u) +
                  (this_tile >> 9 & 1u) +
                  (t_tile >> 25 & 1u);
+  //TODO: IDEA: replace (x >> p & 1) with ((x & (2**p)) != 0)
+  //TODO: pragma unroll probably doesn't cause any problems. reenable it after code works correctly.
+  // ~ #pragma unroll
 
-#pragma unroll
-
+  //TODO: IDEA: instead of having an if statement inside the loop have first_cells and seconds_cells in an array[2]
   for (int i = 1; i < 7; ++i) {
-    // (x & 1u) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
-    this_cell = this_tile >> i & 1u;
+    uint this_cell = this_tile >> i & 1u;
 
+    // (x & 1u) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+      first_cells = (this_tile >> (i + 1) & 1u) +
+                    (this_tile >> (i + 9) & 1u) +
                     (t_tile >> (i + 25) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+      second_cells = (this_tile >> (i + 1) & 1u) +
+                     (this_tile >> (i + 9) & 1u) +
                      (t_tile >> (i + 25) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
 
+    //TODO: replace and profile with:
+    // ~ result_tile |= ((alive_cells == 3) || (alive_cells == 2 && this_cell)) * (1u << i);
     result_tile |= (alive_cells == 3) || (alive_cells == 2
                                           && this_cell) ? (1u << i) : 0u;
   }
@@ -133,10 +141,10 @@ __global__ void calculate_next_generation(
                  (this_tile >> 9 & 1u) +
                  (this_tile >> 17 & 1u);
 
-#pragma unroll
+  // ~ #pragma unroll
 
   for (int i = 9; i < 15; ++i) {
-    this_cell = (this_tile >> i) & 1u;
+    uint this_cell = (this_tile >> i) & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
@@ -164,10 +172,10 @@ __global__ void calculate_next_generation(
                  (this_tile >> 9 & 1u) +
                  (this_tile >> 17 & 1u);
 
-#pragma unroll
+  // ~ #pragma unroll
 
   for (int i = 17; i < 23; ++i) {
-    this_cell = (this_tile >> i) & 1u;
+    uint this_cell = (this_tile >> i) & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
@@ -195,10 +203,10 @@ __global__ void calculate_next_generation(
                  (b_tile >> 1 & 1u) +
                  (this_tile >> 17 & 1u);
 
-#pragma unroll
+  // ~ #pragma unroll
 
   for (int i = 25; i < 31; ++i) {
-    this_cell = this_tile >> i & 1u;
+    uint this_cell = this_tile >> i & 1u;
 
     if (i & 1u) {
       alive_cells = first_cells;
@@ -220,6 +228,7 @@ __global__ void calculate_next_generation(
 
   // Update corners 0, 7, 24, 31
   // Update 0. Needs t, tl, l.
+  //TODO: use ILP? http://en.wikipedia.org/wiki/Instruction-level_parallelism
   alive_cells =
     (tl_tile >> 31) +
     (t_tile >> 24 & 1u) +
@@ -325,6 +334,9 @@ __global__ void convert_to_tiled(
 {
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+
+  if (row + col >= m_size) return;
+
   const int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   const int start_j = col * CONF_WIDTH;
   uint place = 1u;
@@ -336,6 +348,7 @@ __global__ void convert_to_tiled(
 
   for (int i = start_i; i < end_i; i += step_i) {
 #pragma unroll
+
     for (int j = start_j; j < end_j; ++j) {
       tile |= place * d_table[j + i];
       place <<= 1;
@@ -360,6 +373,9 @@ __global__ void convert_from_tiled(
 {
   int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+
+  if (row + col >= m_size) return;
+
   int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   int start_j = col * CONF_WIDTH;
   int place = 0;
@@ -396,7 +412,7 @@ int main(int argc, char **argv)
   int n_runs;
 
   // get number of GOL generations if available else use the default
-  if (argc == 4) n_runs = atoi(argv[3]);
+  if (argc >= 4) n_runs = atoi(argv[3]);
   else n_runs = DFL_RUNS;
 
   /* The dimension of one side of the GOL square matrix. */
@@ -430,23 +446,37 @@ int main(int argc, char **argv)
   const uint m_height = dim / thread_height;
   // get name of file which contains the initial GOL matrix
 
+
+  // ~ int blockSize;
+  // ~ int minGridSize;
+  // ~ cudaOccupancyMaxPotentialBlockSize( &minGridSize, &blockSize, calculate_next_generation);
+  // ~ printf("%d %d\n", blockSize, minGridSize);
+
   // Warning! grid and block sizes that correspond to a bigger array will cause leaks
   // these leaks in convert_to and convert_from are currently harmless (no failure)
   // dim == 1000 == 8 * 5 * 25
   // dim == 1000 == 4 * 10 * 25
-  const dim3 block(2, 1);
-  const dim3 grid(1, 1);
+  // x > y (?)
+  dim3 block(1, 1);
+  dim3 grid(1, 1);
+
+  if (argc >= 8) {
+    block = dim3(atoi(argv[4]), atoi(argv[5]));
+    grid = dim3(atoi(argv[6]), atoi(argv[7]));
+  }
 
   char *filename = argv[1];
   // initialize and parse the matrix out of the file
   int *table;
   printf("Reading %dx%d table from file %s\n", dim, dim, filename);
-  table = (int*) malloc(mem_size);
+  table = (int *) malloc(mem_size);
   read_from_file(table, filename, dim, dim);
   printf("Finished reading table\n");
 #ifdef PRINT
   print_table(table, dim, dim);
 #endif  // PRINT
+
+  printf("%s: Running on a grid(%d, %d) with a block(%d, %d):\nFilename: %s with dim %d for %d iterations\n", argv[0], grid.x, grid.y, block.x, block.y, filename, dim, n_runs);
 
   /******************************************************************************
    *                              Table Conversion                              *
@@ -472,8 +502,8 @@ int main(int argc, char **argv)
                                        m_height, m_width, total_elements_tiled);
   cudaCheckErrors("failed to convert normal repr to uint tiled repr", __FILE__, __LINE__);
 
-  // ~ cudaFree((void *) d_table);
-  // ~ cudaCheckErrors("device freeing of GOL matrix failed", __FILE__, __LINE__);
+  cudaFree((void *) d_table);
+  cudaCheckErrors("device freeing of GOL matrix failed", __FILE__, __LINE__);
 
   /******************************************************************************
    *                           Calculation execution                            *
@@ -499,22 +529,22 @@ int main(int argc, char **argv)
     swap_uint(&d_tiled_table, &d_tiled_help);
   }
 
-  // ~ cudaFree((void *) d_tiled_help);
-  // ~ cudaCheckErrors("device freeing of help matrix failed", __FILE__, __LINE__);
-
   // end timewatch
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time, start, stop);
   printf("CUDA time to run:  %f s \n", time / 1000);
 
+  cudaFree((void *) d_tiled_help);
+  cudaCheckErrors("device freeing of help matrix failed", __FILE__, __LINE__);
+
   /******************************************************************************
    *                  Device finalization and Result printing                   *
    ******************************************************************************/
 
   // allocation again of a matrix that holds the normal representation
-  // ~ cudaMalloc((void **) &d_table,  mem_size);
-  // ~ cudaCheckErrors("device allocation of GOL matrix failed", __FILE__, __LINE__);
+  cudaMalloc((void **) &d_table,  mem_size);
+  cudaCheckErrors("device allocation of GOL matrix failed", __FILE__, __LINE__);
 
   // convert back to normal representation of the matrix
   convert_from_tiled <<< grid, block >>>(d_table, d_tiled_table,
@@ -533,6 +563,6 @@ int main(int argc, char **argv)
 #ifdef PRINT
   print_table(table, dim, dim);
 #endif  // PRINT
-  free((void*) table);
+  free((void *) table);
 }
 #endif  // TESTING
