@@ -95,6 +95,9 @@ __global__ void calculate_next_generation(
   uint alive_cells;
   uint first_cells, second_cells;
 
+  // if we represent a 8x4 array A as int then we can access position [i,j] of the array like this:
+  //(A >> (i + 8 * j) & 1u)
+
   // Update vertical edge 1 - 6
   first_cells = (this_tile & 1u) +
                 (this_tile >> 8 & 1u) +
@@ -148,13 +151,15 @@ __global__ void calculate_next_generation(
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+      first_cells = (this_tile >> (i + 1) & 1u) +
+                    (this_tile >> (i + 9) & 1u) +
                     (this_tile >> (i - 7) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+      second_cells = (this_tile >> (i + 1) & 1u) +
+                     (this_tile >> (i + 9) & 1u) +
                      (this_tile >> (i - 7) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
@@ -179,13 +184,15 @@ __global__ void calculate_next_generation(
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+      first_cells = (this_tile >> (i + 1) & 1u) +
+                    (this_tile >> (i + 9) & 1u) +
                     (this_tile >> (i - 7) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i + 1) & 1u) + (this_tile >> (i + 9) & 1u) +
+      second_cells = (this_tile >> (i + 1) & 1u) +
+                     (this_tile >> (i + 9) & 1u) +
                      (this_tile >> (i - 7) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
@@ -210,13 +217,15 @@ __global__ void calculate_next_generation(
 
     if (i & 1u) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i - 7) & 1u) + (this_tile >> (i + 1) & 1u) +
+      first_cells = (this_tile >> (i - 7) & 1u) +
+                    (this_tile >> (i + 1) & 1u) +
                     (b_tile >> (i - 23) & 1u);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i - 7) & 1u) + (this_tile >> (i + 1) & 1u) +
+      second_cells = (this_tile >> (i - 7) & 1u) +
+                     (this_tile >> (i + 1) & 1u) +
                      (b_tile >> (i - 23) & 1u);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
@@ -301,7 +310,7 @@ __global__ void calculate_next_generation(
     (this_tile >> 22 & 1u) +
     (r_tile & 1u) +
     (r_tile >> 8 & 1u) +
-    (l_tile >> 16 & 1u);
+    (r_tile >> 16 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
                                         && (this_tile >> 15 & 1u)) ? (1u << 15) : 0u;
   alive_cells =
@@ -311,7 +320,8 @@ __global__ void calculate_next_generation(
     (this_tile >> 14 & 1u) +
     (this_tile >> 22 & 1u) +
     (r_tile >> 24 & 1u) +
-    (r_tile >> 8 & 1u) + (l_tile >> 16 & 1u);
+    (r_tile >> 8 & 1u) +
+    (r_tile >> 16 & 1u);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
                                         && (this_tile >> 23 & 1u)) ? (1u << 23) : 0u;
 
