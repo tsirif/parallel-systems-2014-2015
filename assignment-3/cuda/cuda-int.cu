@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <cuda_runtime.h>
 #include "../utils/utils.h"
 
@@ -473,6 +474,18 @@ int main(int argc, char **argv)
   if (argc >= 8) {
     block = dim3(atoi(argv[4]), atoi(argv[5]));
     grid = dim3(atoi(argv[6]), atoi(argv[7]));
+  }
+  else {
+    uint x = 32u;
+    uint y = 32u;
+    do {
+      x >>= 1;
+    } while(x >= m_height);
+    do {
+      y >>= 1;
+    } while(y >= m_width);
+    block = dim3(x, y)
+    grid = dim3((int)(ceil(m_height/(float)x)), (int)(ceil(m_width/(float)y)));
   }
 
   char *filename = argv[1];
