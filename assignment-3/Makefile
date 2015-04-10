@@ -69,7 +69,7 @@ CCFLAGS = $(OPTI) $(WARN) $(STD) $(EXTRA_WARN)
 #flags for g++
 PPFLAGS = $(OPTI) $(WARN)
 #flags for nvcc
-NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -O2 --compiler-options "$(CCFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -O2 --compiler-options "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
 NVCCDBG = -m${OS_SIZE} ${ARCH_FLAGS} -g -G -pg -O0 -lineinfo $(DBG) --compiler-options "$(WARN)" --compiler-bindir "$(NVIDIA_GCC)"
 
 #the name of the cuda source file / target executable
