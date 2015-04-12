@@ -106,7 +106,8 @@ int main(int argc, char **argv)
     gettimeofday (&endwtime, NULL);
     double time = (double)((endwtime.tv_usec - startwtime.tv_usec)
                            / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-    printf("OMP time to run: %f s\n", time);
+    printf(ANSI_COLOR_RED"OMP"ANSI_COLOR_RESET" time to run: "
+        ANSI_COLOR_RED"%f"ANSI_COLOR_RESET" ms\n", time * 1000);
     save_table(table, N, N, "omp-results.bin");
     free(table);
     free(help_table);

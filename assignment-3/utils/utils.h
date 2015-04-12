@@ -6,7 +6,27 @@
 #include <time.h>
 #include <stdint.h>
 
-typedef uint32_t uint;
+#ifdef DOUBLE
+#define CONF_HEIGHT 8
+#define CONF_WIDTH 8
+#define ONE 1lu
+#define ZERO 0lu
+#define BIT "64"
+  typedef uint64_t pint;
+#else
+/**
+* @brief The height of a tile assigned to a thread.
+*/
+#define CONF_HEIGHT 4
+/**
+* @brief The width of a tile assigned to a thread.
+*/
+#define CONF_WIDTH 8
+#define ONE 1u
+#define ZERO 0u
+#define BIT "32"
+  typedef uint32_t pint;
+#endif
 
 /**
  * @brief The number of iterations (life generations) over the GOL matrix.
@@ -34,8 +54,9 @@ static inline void swap(int **a, int **b)
   *b = t;
 }
 
-static inline void swap_uint(uint **a, uint **b){
-  uint *t;
+static inline void swap_p(pint **a, pint **b)
+{
+  pint *t;
   t = *a;
   *a = *b;
   *b = t;
