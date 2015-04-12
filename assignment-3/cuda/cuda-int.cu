@@ -85,7 +85,7 @@ __global__ void calculate_next_generation(
   const int r_col = (col + 1) % m_width;
 
 #ifdef PRINT
-  printf("Thread %d - %d:\n"
+  printf("Thread %d-%d:\n"
   "top row: %d, bottom row: %d\n"
   "left col: %d, right col: %d\n", row, col, t_row, b_row, l_col, r_col);
 #endif  // PRINT
@@ -163,7 +163,7 @@ __global__ void calculate_next_generation(
 
   int start_i, end_i;
   // Update cells in the middle
-  for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_HEIGHT; j += CONF_WIDTH) {
+  for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_WIDTH; j += CONF_WIDTH) {
     start_i = j + 1;
     end_i = j + CONF_WIDTH - 1;
     first_cells = (this_tile >> (j - CONF_WIDTH) & 1u) +
@@ -195,6 +195,10 @@ __global__ void calculate_next_generation(
                                             && this_cell) ? (1u << i) : 0u;
     }
   }
+
+#ifdef PRINT
+  printf("Thread %d-%d:\nLast horizontal begins with j: %d\n", row, col, j);
+#endif  // PRINT
 
   // Update last horizontal row
   start_i = j + 1;
@@ -426,7 +430,7 @@ int main(int argc, char **argv)
    ******************************************************************************/
 
   if (argc < 3) {
-    printf("usage: %s filename dimension (iterations)\n", argv[0]);
+    printf("usage: %s fname dim (iter blockx blocky gridx gridy)\n", argv[0]);
     exit(1);
   }
 
@@ -437,15 +441,15 @@ int main(int argc, char **argv)
   else n_runs = DFL_RUNS;
 
   /* The dimension of one side of the GOL square matrix. */
-  const uint dim = atoi(argv[2]);
+  const unsigned int dim = atoi(argv[2]);
   /* Total cells in the GOL square matrix. */
-  const uint total_elements = dim * dim;
+  const unsigned int total_elements = dim * dim;
   /* Size of the GOL matrix in bytes. */
-  const uint mem_size = total_elements * sizeof(int);
+  const unsigned int mem_size = total_elements * sizeof(int);
   /* The width of a tile assigned to a thread. */
-  const uint thread_width = CONF_WIDTH;
+  const unsigned int thread_width = CONF_WIDTH;
   /* The height of a tile assigned to a thread. */
-  const uint thread_height = CONF_HEIGHT;
+  const unsigned int thread_height = CONF_HEIGHT;
   /* Example for a 8x4 tile:
    * cuda-int implementation:
    * 32 cells in sizeof(int) bytes = 4 bytes = 32 bits => 1 cell : 1 bit
@@ -458,13 +462,13 @@ int main(int argc, char **argv)
    * single-precision GPUs are using 32 bits.
    **/
   /* Total cells in the tiled GOL matrix. */
-  const uint total_elements_tiled = total_elements / (thread_height * thread_width);
+  const unsigned int total_elements_tiled = total_elements / (thread_height * thread_width);
   /* The total size of the tiled GOL matrix in bytes. */
-  const uint mem_size_tiled = mem_size / (thread_height * thread_width);
+  const unsigned int mem_size_tiled = mem_size / (thread_height * thread_width);
   /* Number of tiles in width. */
-  const uint m_width = dim / thread_width;
+  const unsigned int m_width = dim / thread_width;
   /* Number of tiles in height. */
-  const uint m_height = dim / thread_height;
+  const unsigned int m_height = dim / thread_height;
   // get name of file which contains the initial GOL matrix
 
 
@@ -478,6 +482,10 @@ int main(int argc, char **argv)
   // dim == 1000 == 8 * 5 * 25
   // dim == 1000 == 4 * 10 * 25
   // x > y (?)
+
+  printf("%s: Normal grid repr: %d x %d\n"
+      "%s: Tiled grid repr: %d x %d\n", argv[0], dim, dim, argv[0], m_height, m_width);
+
   dim3 block(1, 1);
   dim3 grid(1, 1);
 
@@ -486,8 +494,8 @@ int main(int argc, char **argv)
     grid = dim3(atoi(argv[6]), atoi(argv[7]));
   }
   else {
-    uint x = 32u;
-    uint y = 32u;
+    unsigned int x = 32u;
+    unsigned int y = 32u;
     do {
       x >>= 1;
     } while(x >= m_height);
@@ -501,15 +509,16 @@ int main(int argc, char **argv)
   char *filename = argv[1];
   // initialize and parse the matrix out of the file
   int *table;
-  printf("Reading %dx%d table from file %s\n", dim, dim, filename);
+  printf("%s: Reading %dx%d table from file %s\n", argv[0], dim, dim, filename);
   table = (int *) malloc(mem_size);
   read_from_file(table, filename, dim, dim);
-  printf("Finished reading table\n");
+  printf("%s: Finished reading table\n", argv[0]);
 #ifdef PRINT
   print_table(table, dim, dim);
 #endif  // PRINT
 
-  printf("%s: Running on a grid(%d, %d) with a block(%d, %d):\nFilename: %s with dim %d for %d iterations\n", argv[0], grid.x, grid.y, block.x, block.y, filename, dim, n_runs);
+  printf("%s: Running on a grid(%d, %d) with a block(%d, %d):\nFilename: %s with dim %d for %d iterations\n",
+      argv[0], grid.x, grid.y, block.x, block.y, filename, dim, n_runs);
 
   /******************************************************************************
    *                              Table Conversion                              *
