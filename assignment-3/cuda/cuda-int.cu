@@ -8,15 +8,15 @@
 // For double precision GPUs, compile with -DDOUBLE
 // e.g. for our Makefile, you should invoke "make <target> PRECISION=-DDOUBLE"
 
-__device__ void PRINT_TILE(pint tile)
-{
-  for(int xxx = 0; xxx < CONF_HEIGHT; xxx++) {
-    for(int yyy = 0; yyy < CONF_WIDTH; yyy++) {
-      printf("%s "ANSI_COLOR_RESET, (tile >> (yyy + CONF_WIDTH * xxx) & ONE) ? ANSI_COLOR_BLUE : ANSI_COLOR_RED);
-    }
-    printf("\n");
-  }
-}
+/* __device__ void PRINT_TILE(pint tile)                                                                             */
+/* {                                                                                                                 */
+/*   for(int xxx = 0; xxx < CONF_HEIGHT; xxx++) {                                                                    */
+/*     for(int yyy = 0; yyy < CONF_WIDTH; yyy++) {                                                                   */
+/*       printf("%s "ANSI_COLOR_RESET, (tile >> (yyy + CONF_WIDTH * xxx) & ONE) ? ANSI_COLOR_BLUE : ANSI_COLOR_RED); */
+/*     }                                                                                                             */
+/*     printf("\n");                                                                                                 */
+/*   }                                                                                                               */
+/* }                                                                                                                 */
 
 /**
  * @brief Gets last cuda error and if it's not a cudaSuccess
@@ -594,14 +594,15 @@ int main(int argc, char **argv)
     calculate_next_generation <<< grid, block >>>(
       d_tiled_table, d_tiled_help, m_height, m_width, total_elements_tiled);
     cudaCheckErrors("calculating next generation failed", __FILE__, __LINE__);
-    swap(&d_tiled_table, &d_tiled_help);
+    swap_p(&d_tiled_table, &d_tiled_help);
   }
   cudaStreamSynchronize(0);
   // end timewatch
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time, start, stop);
-  printf("CUDA time to run:  %f s \n", time / 1000);
+  printf(ANSI_COLOR_RED"CUDA-"BIT ANSI_COLOR_RESET" time to run: "
+      ANSI_COLOR_RED"%f"ANSI_COLOR_RESET" ms\n", time);
 
   cudaFree((void *) d_tiled_help);
   cudaCheckErrors("device freeing of help matrix failed", __FILE__, __LINE__);
@@ -627,7 +628,7 @@ int main(int argc, char **argv)
   cudaDeviceReset();
 
   // save results to a file
-  save_table(table, dim, dim, "cuda-2-results.bin");
+  save_table(table, dim, dim, "cuda_2_results_"BIT".bin");
 #ifdef PRINT
   print_table(table, dim, dim);
 #endif  // PRINT

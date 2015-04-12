@@ -11,6 +11,7 @@
 #define CONF_WIDTH 8
 #define ONE 1lu
 #define ZERO 0lu
+#define BIT "64"
   typedef uint64_t pint;
 #else
 /**
@@ -23,6 +24,7 @@
 #define CONF_WIDTH 8
 #define ONE 1u
 #define ZERO 0u
+#define BIT "32"
   typedef uint32_t pint;
 #endif
 
@@ -44,7 +46,15 @@
 #define POS(i, j) (i*N + j)
 
 /* swap 2 int* pointers */
-static inline void swap(pint **a, pint **b)
+static inline void swap(int **a, int **b)
+{
+  int *t;
+  t = *a;
+  *a = *b;
+  *b = t;
+}
+
+static inline void swap_p(pint **a, pint **b)
 {
   pint *t;
   t = *a;

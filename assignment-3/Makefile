@@ -64,14 +64,15 @@ STD = -std=c99
 WARN = -Wextra -Wall -Wpointer-arith -Wformat -Wfloat-equal -Winit-self
 EXTRA_WARN = -Wcast-qual -Wwrite-strings -pedantic -Wshadow -Wstrict-prototypes -Wundef -Wunreachable-code
 DBG = -DPRINT -DTEST
-PRECISION =
+SINGLE_PRECISION = -DSINGLE
+DOUBLE_PRECISION = -DDOUBLE
 #flags for gcc
 CCFLAGS = $(OPTI) $(WARN) $(STD) $(EXTRA_WARN)
 #flags for g++
 PPFLAGS = $(OPTI) $(WARN)
 #flags for nvcc
-NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -lm -O2 --compiler-options $(PRECISION) "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
-NVCCDBG = -m${OS_SIZE} ${ARCH_FLAGS} -lm -g -G -pg -O0 -lineinfo $(DBG) $(PRECISION) --compiler-options "$(WARN)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -lm -O2 --compiler-options "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCDBG = -m${OS_SIZE} ${ARCH_FLAGS} -lm -g -G -pg -O0 -lineinfo $(DBG) --compiler-options "$(WARN)" --compiler-bindir "$(NVIDIA_GCC)"
 
 #the name of the cuda source file / target executable
 TARGET = cuda-int
@@ -95,26 +96,42 @@ endif
 # $< is 1st dependancy
 # $@ is left of ':'
 
-all: $(BIN_DIR) $(BIN_DIR)/$(TARGET).out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET).out
 $(BIN_DIR):
 	mkdir $(BIN_DIR)
-$(BIN_DIR)/$(TARGET).out: $(BIN_DIR)/$(TARGET).o
-	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -o $@ $^
-$(BIN_DIR)/$(TARGET).o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
-	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
-$(BIN_DIR)/$(TARGET)_dbg.out: $(BIN_DIR)/$(TARGET)_dbg.o
-	$(NVCC) $(NVCCDBG) $(GENCODE_FLAGS) -o $@ $^
-$(BIN_DIR)/$(TARGET)_dbg.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
-	$(NVCC) $(NVCCDBG) $(GENCODE_FLAGS) -o $@ -c $<
+
+all: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_32.out $(BIN_DIR)/$(TARGET)_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET).out
+dbg: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_dbg_32.out $(BIN_DIR)/$(TARGET)_dbg_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
+
+$(BIN_DIR)/$(TARGET)_32.out: $(BIN_DIR)/$(TARGET)_32.o
+	$(NVCC) $(NVCCFLAGS) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
+$(BIN_DIR)/$(TARGET)_32.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
+	$(NVCC) $(NVCCFLAGS) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
+
+$(BIN_DIR)/$(TARGET)_dbg_32.out: $(BIN_DIR)/$(TARGET)_dbg_32.o
+	$(NVCC) $(NVCCDBG) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
+$(BIN_DIR)/$(TARGET)_dbg_32.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
+	$(NVCC) $(NVCCDBG) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
+
+$(BIN_DIR)/$(TARGET)_64.out: $(BIN_DIR)/$(TARGET)_64.o
+	$(NVCC) $(NVCCFLAGS) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
+$(BIN_DIR)/$(TARGET)_64.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
+	$(NVCC) $(NVCCFLAGS) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
+
+$(BIN_DIR)/$(TARGET)_dbg_64.out: $(BIN_DIR)/$(TARGET)_dbg_64.o
+	$(NVCC) $(NVCCDBG) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
+$(BIN_DIR)/$(TARGET)_dbg_64.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
+	$(NVCC) $(NVCCDBG) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
 
 $(BIN_DIR)/generate_table.o: $(UTILS_DIR)/generate_table.c
 	$(CC) $(CCFLAGS) -o $@ -c $^
 $(BIN_DIR)/$(GEN).out: $(BIN_DIR)/generate_table.o
 	$(CC) $(CCFLAGS) -o $@ $^
+
 $(BIN_DIR)/$(CPU_TARGET).o: $(CPU_DIR)/$(CPU_TARGET).c
 	$(CC) $(CCFLAGS) -fopenmp -o $@ -c $^
 $(BIN_DIR)/$(CPU_TARGET).out: $(BIN_DIR)/$(CPU_TARGET).o
 	$(CC) $(CCFLAGS) -fopenmp -o $@ $^
+
 $(BIN_DIR)/$(CPU_TARGET)_dbg.o: $(CPU_DIR)/$(CPU_TARGET).c
 	$(CC) $(CCFLAGS) -g $(DBG) -fopenmp -o $@ -c $^
 $(BIN_DIR)/$(CPU_TARGET)_dbg.out: $(BIN_DIR)/$(CPU_TARGET)_dbg.o
@@ -127,11 +144,12 @@ test: all
 	-$(TESTS_DIR)/checksum_tester.py $(N)
 	rm -f *.bin
 run: all
-	./$(GEN).out $(N)
-	./$(TARGET).out table$(N)x$(N).$(BIN_DIR) $(N) $(T)
+	./$(BIN_DIR)/$(GEN).out $(N)
+	./$(BIN_DIR)/$(CPU_TARGET).out table$(N)x$(N).bin $(N) $(T)
+	./$(BIN_DIR)/$(TARGET)_32.out table$(N)x$(N).bin $(N) $(T)
+	./$(BIN_DIR)/$(TARGET)_64.out table$(N)x$(N).bin $(N) $(T)
 clear:
 	rm -f *.o *.$(BIN_DIR) *.out *.html
 	rm -rf $(BIN_DIR)/ $(TMP_DIR)/
-dbg: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_dbg.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
 clean: clear
 debug: dbg
