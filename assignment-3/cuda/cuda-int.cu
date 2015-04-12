@@ -9,16 +9,29 @@
  * @brief Gets last cuda error and if it's not a cudaSuccess
  * prints debug information on stderr and aborts.
  */
-#define cudaCheckErrors(msg, yolo, yolo2) \
-  do { \
-    cudaError_t __err = cudaGetLastError(); \
-    if (__err != cudaSuccess) { \
-      fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \
-              msg, cudaGetErrorString(__err), \
-              __FILE__, __LINE__); \
-      exit(1); \
-    } \
-  } while (0)
+inline void cudaCheckErrors(const char msg[], const char file[], int line)
+{
+  do {
+    cudaError_t __err = cudaGetLastError();
+    if (__err != cudaSuccess) {
+      fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n",
+              msg, cudaGetErrorString(__err),
+              file, line);
+      exit(1);
+    }
+  } while (0);
+}
+
+/* #define cudaCheckErrors(msg, yolo, yolo2) \                */
+/*   do { \                                                   */
+/*     cudaError_t __err = cudaGetLastError(); \              */
+/*     if (__err != cudaSuccess) { \                          */
+/*       fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \ */
+/*               msg, cudaGetErrorString(__err), \            */
+/*               __FILE__, __LINE__); \                       */
+/*       exit(1); \                                           */
+/*     } \                                                    */
+/*   } while (0)                                              */
 
 #ifdef DOUBLE
 #define CONF_HEIGHT 8
@@ -148,6 +161,7 @@ __global__ void calculate_next_generation(
                                           && this_cell) ? (1u << i) : 0u;
   }
 
+  int start_i, end_i;
   // Update cells in the middle
   for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_HEIGHT; j += CONF_WIDTH) {
     start_i = j + 1;
@@ -348,11 +362,12 @@ __global__ void convert_to_tiled(
   const int step_i = m_width * CONF_WIDTH;
   const int end_i = start_i + CONF_HEIGHT * step_i;
   const int end_j = start_j + CONF_WIDTH;
+  int i, j;
 
-  for (int i = start_i; i < end_i; i += step_i) {
 #pragma unroll
-
-    for (int j = start_j; j < end_j; ++j) {
+  for (i = start_i; i < end_i; i += step_i) {
+#pragma unroll
+    for (j = start_j; j < end_j; ++j) {
       tile |= place * d_table[j + i];
       place <<= 1;
     }
@@ -374,14 +389,14 @@ __global__ void convert_from_tiled(
   int *d_table, uint const *d_utable,
   uint m_height, uint m_width, uint m_size)
 {
-  int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
-  int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
+  const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
+  const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
   if (row >= m_size) return;
   if (col >= m_width) return;
 
-  int start_i = row * CONF_WIDTH * CONF_HEIGHT;
-  int start_j = col * CONF_WIDTH;
+  const int start_i = row * CONF_WIDTH * CONF_HEIGHT;
+  const int start_j = col * CONF_WIDTH;
   int place = 0;
 
   const uint tile = d_utable[col + row];
@@ -391,7 +406,9 @@ __global__ void convert_from_tiled(
   const int end_j = start_j + CONF_WIDTH;
   int i, j;
 
+#pragma unroll
   for (i = start_i; i < end_i; i += step_i) {
+#pragma unroll
     for (j = start_j; j < end_j; ++j)
       d_table[j + i] = (int) (tile >> place++ & 1u);
   }

@@ -6,7 +6,21 @@
 #include <time.h>
 #include <stdint.h>
 
-typedef uint32_t unsigned int;
+#ifdef DOUBLE
+#define CONF_HEIGHT 8
+#define CONF_WIDTH 8
+  typedef uint64_t uint;
+#else
+/**
+* @brief The height of a tile assigned to a thread.
+*/
+#define CONF_HEIGHT 4
+/**
+* @brief The width of a tile assigned to a thread.
+*/
+#define CONF_WIDTH 8
+  typedef uint32_t uint;
+#endif
 
 /**
  * @brief The number of iterations (life generations) over the GOL matrix.
@@ -34,8 +48,8 @@ static inline void swap(int **a, int **b)
   *b = t;
 }
 
-static inline void swap_uint(unsigned int **a, unsigned int **b){
-  unsigned int *t;
+static inline void swap_uint(uint **a, uint **b){
+  uint *t;
   t = *a;
   *a = *b;
   *b = t;
