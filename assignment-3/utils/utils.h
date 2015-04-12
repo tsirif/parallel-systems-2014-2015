@@ -9,6 +9,8 @@
 #ifdef DOUBLE
 #define CONF_HEIGHT 8
 #define CONF_WIDTH 8
+#define ONE 1lu
+#define ZERO 0lu
   typedef uint64_t pint;
 #else
 /**
@@ -19,6 +21,8 @@
 * @brief The width of a tile assigned to a thread.
 */
 #define CONF_WIDTH 8
+#define ONE 1u
+#define ZERO 0u
   typedef uint32_t pint;
 #endif
 

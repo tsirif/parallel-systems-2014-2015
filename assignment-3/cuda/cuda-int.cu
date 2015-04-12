@@ -5,6 +5,19 @@
 #include <stdint.h>
 #include "../utils/utils.h"
 
+// For double precision GPUs, compile with -DDOUBLE
+// e.g. for our Makefile, you should invoke "make <target> PRECISION=-DDOUBLE"
+
+__device__ void PRINT_TILE(pint tile)
+{
+  for(int xxx = 0; xxx < CONF_HEIGHT; xxx++) {
+    for(int yyy = 0; yyy < CONF_WIDTH; yyy++) {
+      printf("%s "ANSI_COLOR_RESET, (tile >> (yyy + CONF_WIDTH * xxx) & ONE) ? ANSI_COLOR_BLUE : ANSI_COLOR_RED);
+    }
+    printf("\n");
+  }
+}
+
 /**
  * @brief Gets last cuda error and if it's not a cudaSuccess
  * prints debug information on stderr and aborts.
@@ -17,6 +30,7 @@ inline void cudaCheckErrors(const char msg[], const char file[], int line)
       fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n",
               msg, cudaGetErrorString(__err),
               file, line);
+      cudaDeviceReset();
       exit(1);
     }
   } while (0);
@@ -49,6 +63,10 @@ __global__ void calculate_next_generation(
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
   const int col = __mul24(blockIdx.y, blockDim.y) + threadIdx.y;
 
+#ifdef PRINT
+  printf("Thread %d-%d: %u x %u == %u\n", row, col, m_height, m_width, m_size);
+#endif  // PRINT
+
   if (row >= m_size) return;
   if (col >= m_width) return;
 
@@ -77,9 +95,9 @@ __global__ void calculate_next_generation(
 
 #ifdef PRINT
   printf("Thread %d-%d:\n"
-  "tl: %X, t: %X, tr: %X\n"
-  "l: %X, this: %X, r: %X\n"
-  "bl: %X, b: %X, br: %X\n", row, col,
+  "tl: %lu, t: %lu, tr: %lu\n"
+  "l: %lu, this: %lu, r: %lu\n"
+  "bl: %lu, b: %lu, br: %lu\n", row, col,
   tl_tile, t_tile, tr_tile,
   l_tile, this_tile, r_tile,
   bl_tile, b_tile, br_tile);
@@ -95,218 +113,250 @@ __global__ void calculate_next_generation(
   uint first_cells, second_cells;
 
   // if we represent a 8x4 array A as int then we can access position [i,j] of the array like this:
-  //(A >> (i + 8 * j) & 1u)
+  //(A >> (i + 8 * j) & ONE)
 
   // Update first horizontal row
-  first_cells = (this_tile & 1u) +
-                (this_tile >> CONF_WIDTH & 1u) +
-                (t_tile >> bl & 1u);
-  second_cells = (this_tile >> 1 & 1u) +
-                 (this_tile >> (CONF_WIDTH + 1) & 1u) +
-                 (t_tile >> (bl + 1) & 1u);
+  first_cells = (this_tile & ONE) +
+                (this_tile >> CONF_WIDTH & ONE) +
+                (t_tile >> bl & ONE);
+  second_cells = (this_tile >> 1 & ONE) +
+                 (this_tile >> (CONF_WIDTH + 1) & ONE) +
+                 (t_tile >> (bl + 1) & ONE);
   //TODO: IDEA: replace (x >> p & 1) with ((x & (2**p)) != 0)
   //TODO: pragma unroll probably doesn't cause any problems. reenable it after code works correctly.
   //TODO: IDEA: instead of having an if statement inside the loop have first_cells and seconds_cells in an array[2]
   // ~ #pragma unroll
   for (i = 1; i < CONF_WIDTH - 1; ++i) {
-    uint this_cell = this_tile >> i & 1u;
+    uint this_cell = this_tile >> i & ONE;
 
-    // (x & 1u) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
-    if (i & 1u) {
+    // (x & ONE) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
+    if (i & ONE) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i + 1) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH + 1) & 1u) +
-                    (t_tile >> (i + bl + 1) & 1u);
+      first_cells = (this_tile >> (i + 1) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH + 1) & ONE) +
+                    (t_tile >> (i + bl + 1) & ONE);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i + 1) & 1u) +
-                     (this_tile >> (i + CONF_WIDTH + 1) & 1u) +
-                     (t_tile >> (i + bl + 1) & 1u);
+      second_cells = (this_tile >> (i + 1) & ONE) +
+                     (this_tile >> (i + CONF_WIDTH + 1) & ONE) +
+                     (t_tile >> (i + bl + 1) & ONE);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
 
     //TODO: replace and profile with:
-    // ~ result_tile |= ((alive_cells == 3) || (alive_cells == 2 && this_cell)) * (1u << i);
+    // ~ result_tile |= ((alive_cells == 3) || (alive_cells == 2 && this_cell)) * (ONE << i);
     result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                          && this_cell) ? (1u << i) : 0u;
+                                          && this_cell) ? (ONE << i) : ZERO;
   }
+/* #if defined(PRINT) and defined(DOUBLE)           */
+/*   printf("Thread %d-%d: Result-tile is now:\n"); */
+/*   PRINT_TILE(result_tile);                       */
+/* #endif  // PRINT and DOUBLE                      */
 
   int start_i, end_i;
   // Update cells in the middle
   for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_WIDTH; j += CONF_WIDTH) {
+#if defined(PRINT) and defined(DOUBLE)
+    printf("Thread %d-%d: Checking tile-row with j: %d\n", row, col, j);
+#endif  // PRINT and DOUBLE
     start_i = j + 1;
     end_i = j + CONF_WIDTH - 1;
-    first_cells = (this_tile >> (j - CONF_WIDTH) & 1u) +
-                  (this_tile >> j & 1u) +
-                  (this_tile >> (j + CONF_WIDTH) & 1u);
-    second_cells = (this_tile >> (j + 1 - CONF_WIDTH) & 1u) +
-                  (this_tile >> (j + 1) & 1u) +
-                  (this_tile >> (j + 1 + CONF_WIDTH) & 1u);
+    first_cells = (this_tile >> (j - CONF_WIDTH) & ONE) +
+                  (this_tile >> j & ONE) +
+                  (this_tile >> (j + CONF_WIDTH) & ONE);
+    second_cells = (this_tile >> (j + 1 - CONF_WIDTH) & ONE) +
+                  (this_tile >> (j + 1) & ONE) +
+                  (this_tile >> (j + 1 + CONF_WIDTH) & ONE);
     // ~ #pragma unroll
     for (i = start_i; i < end_i; ++i) {
-      uint this_cell = (this_tile >> i) & 1u;
-      if (i & 1u) {
+      uint this_cell = (this_tile >> i) & ONE;
+      if (i & ONE) {
         alive_cells = first_cells;
-        first_cells = (this_tile >> (i + 1) & 1u) +
-                      (this_tile >> (i + 1 + CONF_WIDTH) & 1u) +
-                      (this_tile >> (i + 1 - CONF_WIDTH) & 1u);
+        first_cells = (this_tile >> (i + 1) & ONE) +
+                      (this_tile >> (i + 1 + CONF_WIDTH) & ONE) +
+                      (this_tile >> (i + 1 - CONF_WIDTH) & ONE);
         alive_cells += first_cells;
         alive_cells += second_cells - this_cell;
       } else {
         alive_cells = second_cells;
-        second_cells = (this_tile >> (i + 1) & 1u) +
-                      (this_tile >> (i + 1 + CONF_WIDTH) & 1u) +
-                      (this_tile >> (i + 1 - CONF_WIDTH) & 1u);
+        second_cells = (this_tile >> (i + 1) & ONE) +
+                      (this_tile >> (i + 1 + CONF_WIDTH) & ONE) +
+                      (this_tile >> (i + 1 - CONF_WIDTH) & ONE);
         alive_cells += second_cells;
         alive_cells += first_cells - this_cell;
       }
 
       result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                            && this_cell) ? (1u << i) : 0u;
+                                            && this_cell) ? (ONE << i) : ZERO;
     }
+/* #if defined(PRINT) and defined(DOUBLE)           */
+/*   printf("Thread %d-%d: Result-tile is now:\n"); */
+/*   PRINT_TILE(result_tile);                       */
+/* #endif  // PRINT and DOUBLE                      */
   }
 
 #ifdef PRINT
-  printf("Thread  %d-%d:\nLast horizontal begins with j: %d\n", row, col, j);
+  printf("Thread %d-%d: Last horizontal begins with j: %d\n", row, col, j);
 #endif  // PRINT
 
   // Update last horizontal row
   start_i = j + 1;
   end_i = j + CONF_WIDTH - 1;
-  first_cells = (this_tile >> (j - CONF_WIDTH) & 1u) +
-                (this_tile >> j & 1u) +
-                (b_tile & 1u);
-  second_cells = (this_tile >> (j - CONF_WIDTH + 1) & 1u) +
-                (this_tile >> (j + 1) & 1u) +
-                (b_tile >> 1 & 1u);
+  first_cells = (this_tile >> (j - CONF_WIDTH) & ONE) +
+                (this_tile >> j & ONE) +
+                (b_tile & ONE);
+  second_cells = (this_tile >> (j - CONF_WIDTH + 1) & ONE) +
+                (this_tile >> (j + 1) & ONE) +
+                (b_tile >> 1 & ONE);
   // ~ #pragma unroll
   for (i = start_i; i < end_i; ++i) {
-    uint this_cell = (this_tile >> i) & 1u;
-    if (i & 1u) {
+    uint this_cell = (this_tile >> i) & ONE;
+    if (i & ONE) {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i - CONF_WIDTH + 1) & 1u) +
-                    (this_tile >> (i + 1) & 1u) +
-                    (b_tile >> (i - j + 1) & 1u);
+      first_cells = (this_tile >> (i - CONF_WIDTH + 1) & ONE) +
+                    (this_tile >> (i + 1) & ONE) +
+                    (b_tile >> (i - j + 1) & ONE);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i - CONF_WIDTH + 1) & 1u) +
-                    (this_tile >> (i + 1) & 1u) +
-                    (b_tile >> (i - j + 1) & 1u);
+      second_cells = (this_tile >> (i - CONF_WIDTH + 1) & ONE) +
+                    (this_tile >> (i + 1) & ONE) +
+                    (b_tile >> (i - j + 1) & ONE);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
     result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                          && this_cell) ? (1u << i) : 0u;
+                                          && this_cell) ? (ONE << i) : ZERO;
   }
+/* #if defined(PRINT) and defined(DOUBLE)           */
+/*   printf("Thread %d-%d: Result-tile is now:\n"); */
+/*   PRINT_TILE(result_tile);                       */
+/* #endif  // PRINT and DOUBLE                      */
 
   // Update vertical col to the left
-  first_cells = (l_tile >> tr & 1u) +
-                (this_tile & 1u) +
-                (this_tile >> 1 & 1u);
-  second_cells = (l_tile >> (tr + CONF_WIDTH) & 1u) +
-                 (this_tile >> CONF_WIDTH & 1u) +
-                 (this_tile >> (CONF_WIDTH + 1) & 1u);
+  first_cells = (l_tile >> tr & ONE) +
+                (this_tile & ONE) +
+                (this_tile >> 1 & ONE);
+  second_cells = (l_tile >> (tr + CONF_WIDTH) & ONE) +
+                 (this_tile >> CONF_WIDTH & ONE) +
+                 (this_tile >> (CONF_WIDTH + 1) & ONE);
   for (i = CONF_WIDTH; i < (CONF_HEIGHT - 1) * CONF_WIDTH; i += CONF_WIDTH) {
-    uint this_cell = this_tile >> i & 1u;
-    if ((i/CONF_WIDTH) & 1u) {
+    uint this_cell = this_tile >> i & ONE;
+    if ((i/CONF_WIDTH) & ONE) {
       alive_cells = first_cells;
-      first_cells = (l_tile >> (i + 2 * CONF_WIDTH - 1) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH + 1) & 1u);
+      first_cells = (l_tile >> (i + 2 * CONF_WIDTH - 1) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH + 1) & ONE);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
-      second_cells = (l_tile >> (i + 2 * CONF_WIDTH - 1) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH + 1) & 1u);
+      second_cells = (l_tile >> (i + 2 * CONF_WIDTH - 1) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH + 1) & ONE);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
     result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                          && this_cell) ? (1u << i) : 0u;
+                                          && this_cell) ? (ONE << i) : ZERO;
   }
+/* #if defined(PRINT) and defined(DOUBLE)           */
+/*   printf("Thread %d-%d: Result-tile is now:\n"); */
+/*   PRINT_TILE(result_tile);                       */
+/* #endif  // PRINT and DOUBLE                      */
 
   // Update vertical col to the right
-  first_cells = (this_tile >> (tr - 1) & 1u) +
-                (this_tile >> tr & 1u) +
-                (r_tile & 1u);
-  second_cells = (this_tile >> (tr + CONF_WIDTH - 1) & 1u) +
-                 (this_tile >> (tr + CONF_WIDTH) & 1u) +
-                 (r_tile >> (tr + 1) & 1u);
+  first_cells = (this_tile >> (tr - 1) & ONE) +
+                (this_tile >> tr & ONE) +
+                (r_tile & ONE);
+  second_cells = (this_tile >> (tr + CONF_WIDTH - 1) & ONE) +
+                 (this_tile >> (tr + CONF_WIDTH) & ONE) +
+                 (r_tile >> (tr + 1) & ONE);
   for (i = 2 * CONF_WIDTH - 1 ; i < CONF_HEIGHT * CONF_WIDTH - 1; i += CONF_WIDTH) {
-    uint this_cell = this_tile >> i & 1u;
-    if (((i+1)/CONF_WIDTH) & 1u) {
+    uint this_cell = this_tile >> i & ONE;
+    if (((i+1)/CONF_WIDTH) & ONE) {
       alive_cells = second_cells;
-      second_cells = (this_tile >> (i + CONF_WIDTH - 1) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH) & 1u) +
-                    (r_tile >> (i + 1) & 1u);
+      second_cells = (this_tile >> (i + CONF_WIDTH - 1) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH) & ONE) +
+                    (r_tile >> (i + 1) & ONE);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     } else {
       alive_cells = first_cells;
-      first_cells = (this_tile >> (i + CONF_WIDTH - 1) & 1u) +
-                    (this_tile >> (i + CONF_WIDTH) & 1u) +
-                    (r_tile >> (i + 1) & 1u);
+      first_cells = (this_tile >> (i + CONF_WIDTH - 1) & ONE) +
+                    (this_tile >> (i + CONF_WIDTH) & ONE) +
+                    (r_tile >> (i + 1) & ONE);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     }
     result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                          && this_cell) ? (1u << i) : 0u;
+                                          && this_cell) ? (ONE << i) : ZERO;
   }
+/* #if defined(PRINT) and defined(DOUBLE)           */
+/*   printf("Thread %d-%d: Result-tile is now:\n"); */
+/*   PRINT_TILE(result_tile);                       */
+/* #endif  // PRINT and DOUBLE                      */
 
   // Update corners 0, 7, 24, 31
   // Update 0. Needs t, tl, l.
   //TODO: use ILP? http://en.wikipedia.org/wiki/Instruction-level_parallelism
   alive_cells =
     (tl_tile >> br) +
-    (t_tile >> bl & 1u) +
-    (t_tile >> (bl + 1) & 1u) +
-    (this_tile >> 1 & 1u) +
-    (this_tile >> (CONF_WIDTH + 1) & 1u) +
-    (this_tile >> CONF_WIDTH & 1u) +
-    (l_tile >> tr & 1u) +
-    (l_tile >> (tr + CONF_WIDTH) & 1u);
+    (t_tile >> bl & ONE) +
+    (t_tile >> (bl + 1) & ONE) +
+    (this_tile >> 1 & ONE) +
+    (this_tile >> (CONF_WIDTH + 1) & ONE) +
+    (this_tile >> CONF_WIDTH & ONE) +
+    (l_tile >> tr & ONE) +
+    (l_tile >> (tr + CONF_WIDTH) & ONE);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile & 1u)) ? 1u : 0u;
+                                        && (this_tile & ONE)) ? ONE : ZERO;
   alive_cells =
-    (tr_tile >> bl & 1u) +
-    (t_tile >> (br - 1) & 1u) +
+    (tr_tile >> bl & ONE) +
+    (t_tile >> (br - 1) & ONE) +
     (t_tile >> br) +
-    (this_tile >> (tr - 1) & 1u) +
-    (this_tile >> (tr + CONF_WIDTH - 1) & 1u) +
-    (this_tile >> (tr + CONF_WIDTH) & 1u) +
-    (r_tile & 1u) +
-    (r_tile >> CONF_WIDTH & 1u);
+    (this_tile >> (tr - 1) & ONE) +
+    (this_tile >> (tr + CONF_WIDTH - 1) & ONE) +
+    (this_tile >> (tr + CONF_WIDTH) & ONE) +
+    (r_tile & ONE) +
+    (r_tile >> CONF_WIDTH & ONE);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> tr & 1u)) ? (1u << tr) : 0u;
+                                        && (this_tile >> tr & ONE)) ? (ONE << tr) : ZERO;
   alive_cells =
-    (bl_tile >> tr & 1u) +
-    (b_tile & 1u) +
-    (b_tile >> 1 & 1u) +
-    (this_tile >> (bl - CONF_WIDTH) & 1u) +
-    (this_tile >> (bl - CONF_WIDTH + 1) & 1u) +
-    (this_tile >> (bl + 1) & 1u) +
-    (l_tile >> (br - CONF_WIDTH) & 1u) +
+    (bl_tile >> tr & ONE) +
+    (b_tile & ONE) +
+    (b_tile >> 1 & ONE) +
+    (this_tile >> (bl - CONF_WIDTH) & ONE) +
+    (this_tile >> (bl - CONF_WIDTH + 1) & ONE) +
+    (this_tile >> (bl + 1) & ONE) +
+    (l_tile >> (br - CONF_WIDTH) & ONE) +
     (l_tile >> br);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> bl & 1u)) ? (1u << bl) : 0u;
+                                        && (this_tile >> bl & ONE)) ? (ONE << bl) : ZERO;
   alive_cells =
-    (br_tile & 1u) +
-    (b_tile >> (tr - 1) & 1u) +
-    (b_tile >> tr & 1u) +
-    (this_tile >> (br - CONF_WIDTH - 1) & 1u) +
-    (this_tile >> (br - CONF_WIDTH) & 1u) +
-    (this_tile >> (br - 1) & 1u) +
-    (r_tile >> (bl - CONF_WIDTH) & 1u) +
-    (r_tile >> bl & 1u);
+    (br_tile & ONE) +
+    (b_tile >> (tr - 1) & ONE) +
+    (b_tile >> tr & ONE) +
+    (this_tile >> (br - CONF_WIDTH - 1) & ONE) +
+    (this_tile >> (br - CONF_WIDTH) & ONE) +
+    (this_tile >> (br - 1) & ONE) +
+    (r_tile >> (bl - CONF_WIDTH) & ONE) +
+    (r_tile >> bl & ONE);
   result_tile |= (alive_cells == 3) || (alive_cells == 2
-                                        && (this_tile >> br)) ? (1u << br) : 0u;
+                                        && (this_tile >> br)) ? (ONE << br) : ZERO;
+/* #if defined(PRINT) and defined(DOUBLE)                                                                                  */
+/*   printf("Thread %d-%d: Result-tile is now:\n");                                                                        */
+/*   for(int xxx = 0; xxx < CONF_HEIGHT; xxx++) {                                                                          */
+/*     for(int yyy = 0; yyy < CONF_WIDTH; yyy++) {                                                                         */
+/*       printf("%s "ANSI_COLOR_RESET, (result_tile >> (yyy + CONF_WIDTH * xxx) & ONE) ? ANSI_COLOR_BLUE : ANSI_COLOR_RED); */
+/*     }                                                                                                                   */
+/*     printf("\n");                                                                                                       */
+/*   }                                                                                                                     */
+/* #endif  // PRINT and DOUBLE                                                                                             */
 
   // send result but to global memory
   d_result[row + col] = result_tile;
@@ -333,8 +383,8 @@ __global__ void convert_to_tiled(
 
   const int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   const int start_j = col * CONF_WIDTH;
-  pint place = 1u;
-  pint tile = 0u;
+  pint place = ONE;
+  pint tile = ZERO;
 
   const int step_i = m_width * CONF_WIDTH;
   const int end_i = start_i + CONF_HEIGHT * step_i;
@@ -345,7 +395,7 @@ __global__ void convert_to_tiled(
   for (i = start_i; i < end_i; i += step_i) {
 #pragma unroll
     for (j = start_j; j < end_j; ++j) {
-      tile |= place * d_table[j + i];
+      tile |= place * (pint) d_table[j + i];
       place <<= 1;
     }
   }
@@ -387,7 +437,7 @@ __global__ void convert_from_tiled(
   for (i = start_i; i < end_i; i += step_i) {
 #pragma unroll
     for (j = start_j; j < end_j; ++j)
-      d_table[j + i] = (int) (tile >> place++ & 1u);
+      d_table[j + i] = (int) (tile >> place++ & ONE);
   }
 }
 
@@ -546,7 +596,7 @@ int main(int argc, char **argv)
     cudaCheckErrors("calculating next generation failed", __FILE__, __LINE__);
     swap(&d_tiled_table, &d_tiled_help);
   }
-
+  cudaStreamSynchronize(0);
   // end timewatch
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
