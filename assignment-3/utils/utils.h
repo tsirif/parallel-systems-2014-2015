@@ -9,7 +9,7 @@
 #ifdef DOUBLE
 #define CONF_HEIGHT 8
 #define CONF_WIDTH 8
-  typedef uint64_t uint;
+  typedef uint64_t pint;
 #else
 /**
 * @brief The height of a tile assigned to a thread.
@@ -19,7 +19,7 @@
 * @brief The width of a tile assigned to a thread.
 */
 #define CONF_WIDTH 8
-  typedef uint32_t uint;
+  typedef uint32_t pint;
 #endif
 
 /**
@@ -40,16 +40,9 @@
 #define POS(i, j) (i*N + j)
 
 /* swap 2 int* pointers */
-static inline void swap(int **a, int **b)
+static inline void swap(pint **a, pint **b)
 {
-  int *t;
-  t = *a;
-  *a = *b;
-  *b = t;
-}
-
-static inline void swap_uint(uint **a, uint **b){
-  uint *t;
+  pint *t;
   t = *a;
   *a = *b;
   *b = t;

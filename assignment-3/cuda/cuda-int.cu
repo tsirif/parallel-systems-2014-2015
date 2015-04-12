@@ -22,33 +22,6 @@ inline void cudaCheckErrors(const char msg[], const char file[], int line)
   } while (0);
 }
 
-/* #define cudaCheckErrors(msg, yolo, yolo2) \                */
-/*   do { \                                                   */
-/*     cudaError_t __err = cudaGetLastError(); \              */
-/*     if (__err != cudaSuccess) { \                          */
-/*       fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \ */
-/*               msg, cudaGetErrorString(__err), \            */
-/*               __FILE__, __LINE__); \                       */
-/*       exit(1); \                                           */
-/*     } \                                                    */
-/*   } while (0)                                              */
-
-#ifdef DOUBLE
-#define CONF_HEIGHT 8
-#define CONF_WIDTH 8
-  typedef uint64_t uint;
-#else
-/**
-* @brief The height of a tile assigned to a thread.
-*/
-#define CONF_HEIGHT 4
-/**
-* @brief The width of a tile assigned to a thread.
-*/
-#define CONF_WIDTH 8
-  typedef uint32_t uint;
-#endif
-
 // TODO: a conversion between the two grid of life representations
 // int per cell <-> uint per 32 cells in the following configuration
 //  0  1  2  3  4  5  6  7
@@ -70,7 +43,7 @@ inline void cudaCheckErrors(const char msg[], const char file[], int line)
  * @param m_size
  */
 __global__ void calculate_next_generation(
-  uint const *d_table, uint *d_result,
+  pint const *d_table, pint *d_result,
   uint m_height, uint m_width, uint m_size)
 {
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
@@ -92,15 +65,15 @@ __global__ void calculate_next_generation(
 
   //TODO: write only own tile to shared memory, write some edges of the block in shared memory and then sync and read neighbors from shared memory
   // bring information to local memory (global/cache/registers)
-  const uint this_tile = d_table[row + col    ];
-  const uint tl_tile = d_table  [t_row + l_col];
-  const uint t_tile = d_table   [t_row + col  ];
-  const uint tr_tile = d_table  [t_row + r_col];
-  const uint l_tile = d_table   [row + l_col  ];
-  const uint r_tile = d_table   [row + r_col  ];
-  const uint bl_tile = d_table  [b_row + l_col];
-  const uint b_tile = d_table   [b_row + col  ];
-  const uint br_tile = d_table  [b_row + r_col];
+  const pint this_tile = d_table[row + col    ];
+  const pint tl_tile = d_table  [t_row + l_col];
+  const pint t_tile = d_table   [t_row + col  ];
+  const pint tr_tile = d_table  [t_row + r_col];
+  const pint l_tile = d_table   [row + l_col  ];
+  const pint r_tile = d_table   [row + r_col  ];
+  const pint bl_tile = d_table  [b_row + l_col];
+  const pint b_tile = d_table   [b_row + col  ];
+  const pint br_tile = d_table  [b_row + r_col];
 
 #ifdef PRINT
   printf("Thread %d-%d:\n"
@@ -117,7 +90,7 @@ __global__ void calculate_next_generation(
   int tr = CONF_WIDTH - 1;
   int bl = CONF_WIDTH * (CONF_HEIGHT - 1), br = CONF_WIDTH * CONF_HEIGHT - 1;
   int i = 0, j = 0;
-  uint result_tile = 0;
+  pint result_tile = 0;
   uint alive_cells;
   uint first_cells, second_cells;
 
@@ -197,7 +170,7 @@ __global__ void calculate_next_generation(
   }
 
 #ifdef PRINT
-  printf("Thread %d-%d:\nLast horizontal begins with j: %d\n", row, col, j);
+  printf("Thread  %d-%d:\nLast horizontal begins with j: %d\n", row, col, j);
 #endif  // PRINT
 
   // Update last horizontal row
@@ -349,7 +322,7 @@ __global__ void calculate_next_generation(
  * @param m_size
  */
 __global__ void convert_to_tiled(
-  int const *d_table, uint *d_utable,
+  int const *d_table, pint *d_utable,
   uint m_height, uint m_width, uint m_size)
 {
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
@@ -360,8 +333,8 @@ __global__ void convert_to_tiled(
 
   const int start_i = row * CONF_WIDTH * CONF_HEIGHT;
   const int start_j = col * CONF_WIDTH;
-  uint place = 1u;
-  uint tile = 0u;
+  pint place = 1u;
+  pint tile = 0u;
 
   const int step_i = m_width * CONF_WIDTH;
   const int end_i = start_i + CONF_HEIGHT * step_i;
@@ -390,7 +363,7 @@ __global__ void convert_to_tiled(
  * @param m_size
  */
 __global__ void convert_from_tiled(
-  int *d_table, uint const *d_utable,
+  int *d_table, pint const *d_utable,
   uint m_height, uint m_width, uint m_size)
 {
   const int row = (__mul24(blockIdx.x, blockDim.x) + threadIdx.x) * m_width;
@@ -403,7 +376,7 @@ __global__ void convert_from_tiled(
   const int start_j = col * CONF_WIDTH;
   int place = 0;
 
-  const uint tile = d_utable[col + row];
+  const pint tile = d_utable[col + row];
 
   const int step_i = m_width * CONF_WIDTH;
   const int end_i = start_i + CONF_HEIGHT * step_i;
@@ -428,6 +401,9 @@ int main(int argc, char **argv)
   /******************************************************************************
    *                    Initialization of program variables                     *
    ******************************************************************************/
+#ifdef PRINT
+  printf("Size of pint is: %lu\n", sizeof(pint));
+#endif  // PRINT
 
   if (argc < 3) {
     printf("usage: %s fname dim (iter blockx blocky gridx gridy)\n", argv[0]);
@@ -441,15 +417,15 @@ int main(int argc, char **argv)
   else n_runs = DFL_RUNS;
 
   /* The dimension of one side of the GOL square matrix. */
-  const unsigned int dim = atoi(argv[2]);
+  const uint dim = atoi(argv[2]);
   /* Total cells in the GOL square matrix. */
-  const unsigned int total_elements = dim * dim;
+  const uint total_elements = dim * dim;
   /* Size of the GOL matrix in bytes. */
-  const unsigned int mem_size = total_elements * sizeof(int);
+  const uint mem_size = total_elements * sizeof(int);
   /* The width of a tile assigned to a thread. */
-  const unsigned int thread_width = CONF_WIDTH;
+  const uint thread_width = CONF_WIDTH;
   /* The height of a tile assigned to a thread. */
-  const unsigned int thread_height = CONF_HEIGHT;
+  const uint thread_height = CONF_HEIGHT;
   /* Example for a 8x4 tile:
    * cuda-int implementation:
    * 32 cells in sizeof(int) bytes = 4 bytes = 32 bits => 1 cell : 1 bit
@@ -462,13 +438,13 @@ int main(int argc, char **argv)
    * single-precision GPUs are using 32 bits.
    **/
   /* Total cells in the tiled GOL matrix. */
-  const unsigned int total_elements_tiled = total_elements / (thread_height * thread_width);
+  const uint total_elements_tiled = total_elements / (thread_height * thread_width);
   /* The total size of the tiled GOL matrix in bytes. */
-  const unsigned int mem_size_tiled = mem_size / (thread_height * thread_width);
+  const uint mem_size_tiled = mem_size / (thread_height * thread_width);
   /* Number of tiles in width. */
-  const unsigned int m_width = dim / thread_width;
+  const uint m_width = dim / thread_width;
   /* Number of tiles in height. */
-  const unsigned int m_height = dim / thread_height;
+  const uint m_height = dim / thread_height;
   // get name of file which contains the initial GOL matrix
 
 
@@ -483,8 +459,8 @@ int main(int argc, char **argv)
   // dim == 1000 == 4 * 10 * 25
   // x > y (?)
 
-  printf("%s: Normal grid repr: %d x %d\n"
-      "%s: Tiled grid repr: %d x %d\n", argv[0], dim, dim, argv[0], m_height, m_width);
+  printf("%s: Normal grid repr: %u x %u\n"
+      "%s: Tiled grid repr: %u x %u\n", argv[0], dim, dim, argv[0], m_height, m_width);
 
   dim3 block(1, 1);
   dim3 grid(1, 1);
@@ -529,7 +505,7 @@ int main(int argc, char **argv)
    ******************************************************************************/
 
   // Allocate memory on device.
-  uint *d_tiled_table; /* Tiled matrix in device memory. */
+  pint *d_tiled_table; /* Tiled matrix in device memory. */
   int *d_table; /* Original GOl matrix in device memory. */
   cudaMalloc((void **) &d_table,  mem_size);
   cudaCheckErrors("device allocation of GOL matrix failed", __FILE__, __LINE__);
@@ -552,7 +528,7 @@ int main(int argc, char **argv)
    ******************************************************************************/
 
   // calculate iterations of game of life with GPU
-  uint *d_tiled_help; /* Tiled help matrix in device memory. */
+  pint *d_tiled_help; /* Tiled help matrix in device memory. */
   cudaMalloc((void **) &d_tiled_help, mem_size_tiled);
   cudaCheckErrors("device allocation of help matrix failed", __FILE__, __LINE__);
 
@@ -568,7 +544,7 @@ int main(int argc, char **argv)
     calculate_next_generation <<< grid, block >>>(
       d_tiled_table, d_tiled_help, m_height, m_width, total_elements_tiled);
     cudaCheckErrors("calculating next generation failed", __FILE__, __LINE__);
-    swap_uint(&d_tiled_table, &d_tiled_help);
+    swap(&d_tiled_table, &d_tiled_help);
   }
 
   // end timewatch

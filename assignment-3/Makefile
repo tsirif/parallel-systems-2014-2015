@@ -64,13 +64,14 @@ STD = -std=c99
 WARN = -Wextra -Wall -Wpointer-arith -Wformat -Wfloat-equal -Winit-self
 EXTRA_WARN = -Wcast-qual -Wwrite-strings -pedantic -Wshadow -Wstrict-prototypes -Wundef -Wunreachable-code
 DBG = -DPRINT -DTEST
+PRECISION =
 #flags for gcc
 CCFLAGS = $(OPTI) $(WARN) $(STD) $(EXTRA_WARN)
 #flags for g++
 PPFLAGS = $(OPTI) $(WARN)
 #flags for nvcc
-NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -lm -O2 --compiler-options "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
-NVCCDBG = -m${OS_SIZE} ${ARCH_FLAGS} -lm -g -G -pg -O0 -lineinfo $(DBG) --compiler-options "$(WARN)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCFLAGS = -m${OS_SIZE} ${ARCH_FLAGS} -lm -O2 --compiler-options $(PRECISION) "$(PPFLAGS)" --compiler-bindir "$(NVIDIA_GCC)"
+NVCCDBG = -m${OS_SIZE} ${ARCH_FLAGS} -lm -g -G -pg -O0 -lineinfo $(DBG) $(PRECISION) --compiler-options "$(WARN)" --compiler-bindir "$(NVIDIA_GCC)"
 
 #the name of the cuda source file / target executable
 TARGET = cuda-int
