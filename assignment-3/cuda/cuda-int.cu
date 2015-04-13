@@ -125,7 +125,7 @@ __global__ void calculate_next_generation(
   //TODO: IDEA: replace (x >> p & 1) with ((x & (2**p)) != 0)
   //TODO: pragma unroll probably doesn't cause any problems. reenable it after code works correctly.
   //TODO: IDEA: instead of having an if statement inside the loop have first_cells and seconds_cells in an array[2]
-  // ~ #pragma unroll
+#pragma unroll
   for (i = 1; i < CONF_WIDTH - 1; ++i) {
     uint this_cell = this_tile >> i & ONE;
 
@@ -158,6 +158,7 @@ __global__ void calculate_next_generation(
 
   int start_i, end_i;
   // Update cells in the middle
+#pragma unroll
   for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_WIDTH; j += CONF_WIDTH) {
 #if defined(PRINT) and defined(DOUBLE)
     printf("Thread %d-%d: Checking tile-row with j: %d\n", row, col, j);
@@ -170,7 +171,7 @@ __global__ void calculate_next_generation(
     second_cells = (this_tile >> (j + 1 - CONF_WIDTH) & ONE) +
                   (this_tile >> (j + 1) & ONE) +
                   (this_tile >> (j + 1 + CONF_WIDTH) & ONE);
-    // ~ #pragma unroll
+#pragma unroll
     for (i = start_i; i < end_i; ++i) {
       uint this_cell = (this_tile >> i) & ONE;
       if (i & ONE) {
@@ -211,7 +212,7 @@ __global__ void calculate_next_generation(
   second_cells = (this_tile >> (j - CONF_WIDTH + 1) & ONE) +
                 (this_tile >> (j + 1) & ONE) +
                 (b_tile >> 1 & ONE);
-  // ~ #pragma unroll
+#pragma unroll
   for (i = start_i; i < end_i; ++i) {
     uint this_cell = (this_tile >> i) & ONE;
     if (i & ONE) {
@@ -244,6 +245,7 @@ __global__ void calculate_next_generation(
   second_cells = (l_tile >> (tr + CONF_WIDTH) & ONE) +
                  (this_tile >> CONF_WIDTH & ONE) +
                  (this_tile >> (CONF_WIDTH + 1) & ONE);
+#pragma unroll
   for (i = CONF_WIDTH; i < (CONF_HEIGHT - 1) * CONF_WIDTH; i += CONF_WIDTH) {
     uint this_cell = this_tile >> i & ONE;
     if ((i/CONF_WIDTH) & ONE) {
@@ -276,6 +278,7 @@ __global__ void calculate_next_generation(
   second_cells = (this_tile >> (tr + CONF_WIDTH - 1) & ONE) +
                  (this_tile >> (tr + CONF_WIDTH) & ONE) +
                  (r_tile >> (tr + 1) & ONE);
+#pragma unroll
   for (i = 2 * CONF_WIDTH - 1 ; i < CONF_HEIGHT * CONF_WIDTH - 1; i += CONF_WIDTH) {
     uint this_cell = this_tile >> i & ONE;
     if (((i+1)/CONF_WIDTH) & ONE) {
