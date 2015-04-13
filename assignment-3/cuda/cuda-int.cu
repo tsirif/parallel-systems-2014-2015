@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <cuda_runtime.h>
-#include <stdint.h>
 #include "../utils/utils.h"
 
 // For double precision GPUs, compile with -DDOUBLE
@@ -105,9 +104,11 @@ __global__ void calculate_next_generation(
 
 
   // build resulting tile in local memory (register)
-  int tr = CONF_WIDTH - 1;
-  int bl = CONF_WIDTH * (CONF_HEIGHT - 1), br = CONF_WIDTH * CONF_HEIGHT - 1;
-  int i = 0, j = 0;
+#define tr (CONF_WIDTH - 1)
+#define bl (CONF_WIDTH * (CONF_HEIGHT - 1))
+#define br (CONF_WIDTH * CONF_HEIGHT - 1)
+  /* int tr = CONF_WIDTH - 1; */
+  /* int bl = CONF_WIDTH * (CONF_HEIGHT - 1), br = CONF_WIDTH * CONF_HEIGHT - 1; */
   pint result_tile = 0;
   uint alive_cells;
   uint first_cells, second_cells;
@@ -126,7 +127,7 @@ __global__ void calculate_next_generation(
   //TODO: pragma unroll probably doesn't cause any problems. reenable it after code works correctly.
   //TODO: IDEA: instead of having an if statement inside the loop have first_cells and seconds_cells in an array[2]
 #pragma unroll
-  for (i = 1; i < CONF_WIDTH - 1; ++i) {
+  for (int i = 1; i < CONF_WIDTH - 1; ++i) {
     uint this_cell = this_tile >> i & ONE;
 
     // (x & ONE) == (x % 2) , x >= 0 but mod operator is relatively slow in cuda so we avoid it.
@@ -156,15 +157,14 @@ __global__ void calculate_next_generation(
 /*   PRINT_TILE(result_tile);                       */
 /* #endif  // PRINT and DOUBLE                      */
 
-  int start_i, end_i;
   // Update cells in the middle
 #pragma unroll
-  for (j = CONF_WIDTH; j < (CONF_HEIGHT - 1) * CONF_WIDTH; j += CONF_WIDTH) {
+  for (int j = CONF_WIDTH; j < bl; j += CONF_WIDTH) {
 #if defined(PRINT) and defined(DOUBLE)
     printf("Thread %d-%d: Checking tile-row with j: %d\n", row, col, j);
 #endif  // PRINT and DOUBLE
-    start_i = j + 1;
-    end_i = j + CONF_WIDTH - 1;
+    int start_i = j + 1;
+    int end_i = j + CONF_WIDTH - 1;
     first_cells = (this_tile >> (j - CONF_WIDTH) & ONE) +
                   (this_tile >> j & ONE) +
                   (this_tile >> (j + CONF_WIDTH) & ONE);
@@ -172,7 +172,7 @@ __global__ void calculate_next_generation(
                   (this_tile >> (j + 1) & ONE) +
                   (this_tile >> (j + 1 + CONF_WIDTH) & ONE);
 #pragma unroll
-    for (i = start_i; i < end_i; ++i) {
+    for (int i = start_i; i < end_i; ++i) {
       uint this_cell = (this_tile >> i) & ONE;
       if (i & ONE) {
         alive_cells = first_cells;
@@ -200,33 +200,31 @@ __global__ void calculate_next_generation(
   }
 
 #ifdef PRINT
-  printf("Thread %d-%d: Last horizontal begins with j: %d\n", row, col, j);
+  printf("Thread %d-%d: Last horizontal begins with j: %d\n", row, col, bl);
 #endif  // PRINT
 
   // Update last horizontal row
-  start_i = j + 1;
-  end_i = j + CONF_WIDTH - 1;
-  first_cells = (this_tile >> (j - CONF_WIDTH) & ONE) +
-                (this_tile >> j & ONE) +
+  first_cells = (this_tile >> (bl - CONF_WIDTH) & ONE) +
+                (this_tile >> bl & ONE) +
                 (b_tile & ONE);
-  second_cells = (this_tile >> (j - CONF_WIDTH + 1) & ONE) +
-                (this_tile >> (j + 1) & ONE) +
+  second_cells = (this_tile >> (bl - CONF_WIDTH + 1) & ONE) +
+                (this_tile >> (bl + 1) & ONE) +
                 (b_tile >> 1 & ONE);
 #pragma unroll
-  for (i = start_i; i < end_i; ++i) {
+  for (int i = bl + 1; i < br; ++i) {
     uint this_cell = (this_tile >> i) & ONE;
     if (i & ONE) {
       alive_cells = first_cells;
       first_cells = (this_tile >> (i - CONF_WIDTH + 1) & ONE) +
                     (this_tile >> (i + 1) & ONE) +
-                    (b_tile >> (i - j + 1) & ONE);
+                    (b_tile >> (i - bl + 1) & ONE);
       alive_cells += first_cells;
       alive_cells += second_cells - this_cell;
     } else {
       alive_cells = second_cells;
       second_cells = (this_tile >> (i - CONF_WIDTH + 1) & ONE) +
                     (this_tile >> (i + 1) & ONE) +
-                    (b_tile >> (i - j + 1) & ONE);
+                    (b_tile >> (i - bl + 1) & ONE);
       alive_cells += second_cells;
       alive_cells += first_cells - this_cell;
     }
@@ -246,7 +244,7 @@ __global__ void calculate_next_generation(
                  (this_tile >> CONF_WIDTH & ONE) +
                  (this_tile >> (CONF_WIDTH + 1) & ONE);
 #pragma unroll
-  for (i = CONF_WIDTH; i < (CONF_HEIGHT - 1) * CONF_WIDTH; i += CONF_WIDTH) {
+  for (int i = CONF_WIDTH; i < bl; i += CONF_WIDTH) {
     uint this_cell = this_tile >> i & ONE;
     if ((i/CONF_WIDTH) & ONE) {
       alive_cells = first_cells;
@@ -279,7 +277,7 @@ __global__ void calculate_next_generation(
                  (this_tile >> (tr + CONF_WIDTH) & ONE) +
                  (r_tile >> (tr + 1) & ONE);
 #pragma unroll
-  for (i = 2 * CONF_WIDTH - 1 ; i < CONF_HEIGHT * CONF_WIDTH - 1; i += CONF_WIDTH) {
+  for (int i = 2 * CONF_WIDTH - 1 ; i < br; i += CONF_WIDTH) {
     uint this_cell = this_tile >> i & ONE;
     if (((i+1)/CONF_WIDTH) & ONE) {
       alive_cells = second_cells;
