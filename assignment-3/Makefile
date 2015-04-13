@@ -96,10 +96,9 @@ endif
 # $< is 1st dependancy
 # $@ is left of ':'
 
+all: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_32.out $(BIN_DIR)/$(TARGET)_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET).out
 $(BIN_DIR):
 	mkdir $(BIN_DIR)
-
-all: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_32.out $(BIN_DIR)/$(TARGET)_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET).out
 dbg: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_dbg_32.out $(BIN_DIR)/$(TARGET)_dbg_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
 
 $(BIN_DIR)/$(TARGET)_32.out: $(BIN_DIR)/$(TARGET)_32.o
