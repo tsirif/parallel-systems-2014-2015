@@ -442,8 +442,35 @@ __global__ void convert_from_tiled(
   for (int i = start_i; i < end_i; i += step_i) {
     #pragma unroll
     for (int j = start_j; j < end_j; ++j)
-      d_table[j + i] = (int) (tile >> place++ & ONE);
+      d_table[j + i] = (int)(tile >> place++ & ONE);
   }
+}
+
+#define CEIL_DIV(x,y) ((x + y - 1) / y)
+
+#define DEFAULT_OPTY 16
+#define DEFAULT_OPTX 16
+
+void best_block_size(int *optx, int *opty, const int min_block_size)
+{
+  #ifdef CUDA_65
+  // The launch configurator returned block size
+  int block_size;
+  // The minimum grid size needed to achieve the maximum occupancy for a full device launch
+  int min_grid_size;
+  cudaOccupancyMaxPotentialBlockSize(&min_grid_size, &block_size,
+                                     calculate_next_generation, 0, min_block_size);
+
+  *optx = (int) ceil(sqrt(block_size));
+
+  while (block_size % *optx)
+    *optx--;
+
+  *opty = block_size / *optx;
+  #else
+  *optx = DEFAULT_OPTX;
+  *opty = DEFAULT_OPTY;
+  #endif
 }
 
 #ifndef TESTING
@@ -503,11 +530,6 @@ int main(int argc, char **argv)
   // get name of file which contains the initial GOL matrix
 
 
-  // ~ int blockSize;
-  // ~ int minGridSize;
-  // ~ cudaOccupancyMaxPotentialBlockSize( &minGridSize, &blockSize, calculate_next_generation);
-  // ~ printf("%d %d\n", blockSize, minGridSize);
-
   // Warning! grid and block sizes that correspond to a bigger array will cause leaks
   // these leaks in convert_to and convert_from are currently harmless (no failure)
   // dim == 1000 == 8 * 5 * 25
@@ -515,28 +537,26 @@ int main(int argc, char **argv)
   // x > y (?)
 
   printf("%s: Normal grid repr: %u x %u\n"
-         "%s: Tiled grid repr: %u x %u\n", argv[0], dim, dim, argv[0], m_height, m_width);
+         "%s: Tiled grid repr: %u x %u\n", argv[0], dim, dim, argv[0], m_height,
+         m_width);
 
-  dim3 block(1, 1);
-  dim3 grid(1, 1);
+  dim3 block;
+  dim3 grid;
 
   if (argc >= 8) {
-    block = dim3(atoi(argv[4]), atoi(argv[5]));
-    grid = dim3(atoi(argv[6]), atoi(argv[7]));
+    block.x = atoi(argv[4]);
+    block.y = atoi(argv[5]);
+    grid.x = atoi(argv[6]);
+    grid.y = atoi(argv[7]);
   } else {
-    unsigned int x = 32u;
-    unsigned int y = 32u;
+    int optx, opty;
+    best_block_size(&optx, &opty, total_elements_tiled);
+    fprintf(stderr, "%d %d\n", optx, opty);
 
-    do {
-      x >>= 1;
-    } while (x >= m_height);
-
-    do {
-      y >>= 1;
-    } while (y >= m_width);
-
-    block = dim3(x, y);
-    grid = dim3((int)(ceil(m_height / (float)x)), (int)(ceil(m_width / (float)y)));
+    block.x = (m_height < optx) ? m_height : optx;
+    block.y = (m_width < opty) ? m_width : opty;
+    grid.x = CEIL_DIV(m_height, block.x);
+    grid.y = CEIL_DIV(m_width, block.y);
   }
 
   char *filename = argv[1];
