@@ -53,13 +53,21 @@ NVIDIA_GCC = gcc
 NVIDIA_GPP = g++
 endif
 
-$(info $(NVIDIA_GCC))
-
 CC = gcc
 NVCC = nvcc
 
+NVCC_VERSION = $(shell nvcc --version | grep 'release' | cut -d' ' -f5 | sed 's/[^0-9]//g')
+$(info $(NVIDIA_GCC))
+$(info $(NVCC_VERSION))
+
+ifeq ($(shell test $(NVCC_VERSION) -gt 60; echo $$?),0)
+CUDA_VER_DEFINE = -DCUDA_65
+else
+CUDA_VER_DEFINE = 
+endif
+
 OPTI = -m$(OS_SIZE) -O3 -finline-functions -fomit-frame-pointer -DNDEBUG \
--fno-strict-aliasing --param max-inline-insns-single=1800
+-fno-strict-aliasing --param max-inline-insns-single=1800 $(CUDA_VER_DEFINE)
 STD = -std=c99
 WARN = -Wextra -Wall -Wpointer-arith -Wformat -Wfloat-equal -Winit-self
 EXTRA_WARN = -Wcast-qual -Wwrite-strings -pedantic -Wshadow -Wstrict-prototypes -Wundef -Wunreachable-code
@@ -98,7 +106,7 @@ endif
 
 all: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_32.out $(BIN_DIR)/$(TARGET)_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET).out
 $(BIN_DIR):
-	mkdir $(BIN_DIR)
+	mkdir -p $(BIN_DIR)
 dbg: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_dbg_32.out $(BIN_DIR)/$(TARGET)_dbg_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
 
 $(BIN_DIR)/$(TARGET)_32.out: $(BIN_DIR)/$(TARGET)_32.o
