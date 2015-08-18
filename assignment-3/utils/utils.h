@@ -1,9 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include <stdint.h>
 
 #ifdef DOUBLE
@@ -12,7 +9,7 @@
 #define ONE 1lu
 #define ZERO 0lu
 #define BIT "64"
-  typedef uint64_t pint;
+typedef uint64_t pint;
 #else
 /**
 * @brief The height of a tile assigned to a thread.
@@ -25,7 +22,7 @@
 #define ONE 1u
 #define ZERO 0u
 #define BIT "32"
-  typedef uint32_t pint;
+typedef uint32_t pint;
 #endif
 
 /**
@@ -46,7 +43,7 @@
 #define POS(i, j) (i*N + j)
 
 /* swap 2 int* pointers */
-static inline void swap(int **a, int **b)
+inline void swap(int **a, int **b)
 {
   int *t;
   t = *a;
@@ -54,7 +51,7 @@ static inline void swap(int **a, int **b)
   *b = t;
 }
 
-static inline void swap_p(pint **a, pint **b)
+inline void swap_p(pint **a, pint **b)
 {
   pint *t;
   t = *a;
@@ -62,51 +59,9 @@ static inline void swap_p(pint **a, pint **b)
   *b = t;
 }
 
-/* Position of i-th row j-th element using our current data arrangement. */
-
-static void read_from_file(int* X, const char* filename, int M, int N)
-{
-  FILE *fp = fopen(filename, "r+");
-  int size = fread(X, sizeof(int), M * N, fp);
-  printf("elements: %d\n", size);
-  fclose(fp);
-}
-
-static void save_table(int *X, int M, int N, const char *filename)
-{
-  FILE *fp;
-  printf("Saving table in file %s\n", filename);
-  fp = fopen(filename, "w+");
-  fwrite(X, sizeof(int), M*N, fp);
-  fclose(fp);
-}
-
-static void generate_table(int *X, int M, int N)
-{
-  srand(time(NULL));
-  int counter = 0;
-
-  for (int i = 0; i < M; i++) {
-      for (int j = 0; j < N; j++) {
-          X[i * N + j] = ( (float)rand() / (float)RAND_MAX ) < THRESHOLD;
-          counter += X[i * N + j];
-      }
-  }
-
-  printf("Number of non zerow elements: %d\n", counter);
-  printf("Perncent: %f\n", (float)counter / (float)(M * N));
-}
-
-static void print_table(int *A, int M, int N)
-{
-  for (int i = 0; i < M; ++i) {
-      for (int j = 0; j < N; ++j)
-          printf("%s%d "ANSI_COLOR_RESET, A[i * N + j] ? ANSI_COLOR_BLUE : ANSI_COLOR_RED, A[i * N + j]);
-
-      printf("\n");
-  }
-
-  printf("\n");
-}
+extern void read_from_file(int* X, const char* filename, int M, int N);
+extern void save_table(int* X, int M, int N, const char* filename);
+extern void generate_table(int* X, int M, int N);
+extern void print_table(int* A, int M, int N);
 
 #endif

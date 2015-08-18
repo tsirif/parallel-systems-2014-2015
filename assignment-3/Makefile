@@ -93,6 +93,7 @@ CUDA_DIR = cuda
 CPU_DIR = cpu
 UTILS_DIR = utils
 TESTS_DIR = tests
+UTILS_C = utils
 
 ifeq ($(N),)
 N = 1000
@@ -105,44 +106,50 @@ endif
 # $@ is left of ':'
 
 all: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_32.out $(BIN_DIR)/$(TARGET)_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET).out
+
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 dbg: $(BIN_DIR) $(BIN_DIR)/$(TARGET)_dbg_32.out $(BIN_DIR)/$(TARGET)_dbg_64.out $(BIN_DIR)/$(GEN).out $(BIN_DIR)/$(CPU_TARGET)_dbg.out
 
-$(BIN_DIR)/$(TARGET)_32.out: $(BIN_DIR)/$(TARGET)_32.o
+$(BIN_DIR)/$(TARGET)_32.out: $(BIN_DIR)/$(TARGET)_32.o $(BIN_DIR)/$(UTILS_C)_cpp.o
 	$(NVCC) $(NVCCFLAGS) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
 $(BIN_DIR)/$(TARGET)_32.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
 	$(NVCC) $(NVCCFLAGS) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
 
-$(BIN_DIR)/$(TARGET)_dbg_32.out: $(BIN_DIR)/$(TARGET)_dbg_32.o
+$(BIN_DIR)/$(TARGET)_dbg_32.out: $(BIN_DIR)/$(TARGET)_dbg_32.o $(BIN_DIR)/$(UTILS_C)_cpp.o
 	$(NVCC) $(NVCCDBG) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
 $(BIN_DIR)/$(TARGET)_dbg_32.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
 	$(NVCC) $(NVCCDBG) $(SINGLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
 
-$(BIN_DIR)/$(TARGET)_64.out: $(BIN_DIR)/$(TARGET)_64.o
+$(BIN_DIR)/$(TARGET)_64.out: $(BIN_DIR)/$(TARGET)_64.o $(BIN_DIR)/$(UTILS_C)_cpp.o
 	$(NVCC) $(NVCCFLAGS) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
 $(BIN_DIR)/$(TARGET)_64.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
 	$(NVCC) $(NVCCFLAGS) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
 
-$(BIN_DIR)/$(TARGET)_dbg_64.out: $(BIN_DIR)/$(TARGET)_dbg_64.o
+$(BIN_DIR)/$(TARGET)_dbg_64.out: $(BIN_DIR)/$(TARGET)_dbg_64.o $(BIN_DIR)/$(UTILS_C)_cpp.o
 	$(NVCC) $(NVCCDBG) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ $^
 $(BIN_DIR)/$(TARGET)_dbg_64.o: $(CUDA_DIR)/$(TARGET).cu $(UTILS_DIR)/utils.h
 	$(NVCC) $(NVCCDBG) $(DOUBLE_PRECISION) $(GENCODE_FLAGS) -o $@ -c $<
 
 $(BIN_DIR)/generate_table.o: $(UTILS_DIR)/generate_table.c
 	$(CC) $(CCFLAGS) -o $@ -c $^
-$(BIN_DIR)/$(GEN).out: $(BIN_DIR)/generate_table.o
+$(BIN_DIR)/$(GEN).out: $(BIN_DIR)/generate_table.o $(BIN_DIR)/$(UTILS_C).o
 	$(CC) $(CCFLAGS) -o $@ $^
 
 $(BIN_DIR)/$(CPU_TARGET).o: $(CPU_DIR)/$(CPU_TARGET).c
 	$(CC) $(CCFLAGS) -fopenmp -o $@ -c $^
-$(BIN_DIR)/$(CPU_TARGET).out: $(BIN_DIR)/$(CPU_TARGET).o
+$(BIN_DIR)/$(CPU_TARGET).out: $(BIN_DIR)/$(CPU_TARGET).o $(BIN_DIR)/$(UTILS_C).o
 	$(CC) $(CCFLAGS) -fopenmp -o $@ $^
 
 $(BIN_DIR)/$(CPU_TARGET)_dbg.o: $(CPU_DIR)/$(CPU_TARGET).c
 	$(CC) $(CCFLAGS) -g $(DBG) -fopenmp -o $@ -c $^
-$(BIN_DIR)/$(CPU_TARGET)_dbg.out: $(BIN_DIR)/$(CPU_TARGET)_dbg.o
+$(BIN_DIR)/$(CPU_TARGET)_dbg.out: $(BIN_DIR)/$(CPU_TARGET)_dbg.o $(BIN_DIR)/$(UTILS_C).o
 	$(CC) $(CCFLAGS) -g $(DBG) -fopenmp -o $@ $^
+
+$(BIN_DIR)/$(UTILS_C).o : $(UTILS_DIR)/$(UTILS_C).c
+	$(CC) $(CCFLAGS) -o $@ -c $^
+$(BIN_DIR)/$(UTILS_C)_cpp.o : $(UTILS_DIR)/$(UTILS_C).c
+	$(NVIDIA_GPP) $(PPFLAGS) -o $@ -c $^
 
 test: all
 	rm -rf $(TMP_DIR)
