@@ -451,20 +451,19 @@ __global__ void convert_from_tiled(
 #define DEFAULT_OPTY 16
 #define DEFAULT_OPTX 16
 
-void best_block_size(int *optx, int *opty, const int min_block_size)
+void best_block_size(int *optx, int *opty)
 {
   #ifdef CUDA_65
   // The launch configurator returned block size
-  int block_size;
+  int block_size = 0;
   // The minimum grid size needed to achieve the maximum occupancy for a full device launch
-  int min_grid_size;
+  int min_grid_size = 0;
   cudaOccupancyMaxPotentialBlockSize(&min_grid_size, &block_size,
-                                     calculate_next_generation, 0, min_block_size);
+                                     (void*)calculate_next_generation,  0, 0);
 
   *optx = (int) ceil(sqrt(block_size));
 
-  while (block_size % *optx)
-    *optx--;
+  while (block_size % *optx) (*optx)--;
 
   *opty = block_size / *optx;
   #else
@@ -550,11 +549,11 @@ int main(int argc, char **argv)
     grid.y = atoi(argv[7]);
   } else {
     int optx, opty;
-    best_block_size(&optx, &opty, total_elements_tiled);
+    best_block_size(&optx, &opty);
     fprintf(stderr, "%d %d\n", optx, opty);
 
-    block.x = (m_height < optx) ? m_height : optx;
-    block.y = (m_width < opty) ? m_width : opty;
+    block.x = (m_height < (uint)optx) ? m_height : optx;
+    block.y = (m_width < (uint)opty) ? m_width : opty;
     grid.x = CEIL_DIV(m_height, block.x);
     grid.y = CEIL_DIV(m_width, block.y);
   }
