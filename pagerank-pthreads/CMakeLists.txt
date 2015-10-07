@@ -11,3 +11,5 @@ add_library(${PROJECT_NAME}_utils
 add_library(${PROJECT_NAME}_parser
   src/parser.c
   )
+
+add_subdirectory(test)

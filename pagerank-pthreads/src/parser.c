@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "utils.h"
+#include "pagerank-pthreads/utils.h"
 
 /**
  * @brief read a directed graph from a file
@@ -53,7 +53,11 @@ int read_graph(char const * filename, uint** L, uint* C, uint* N, uint* E)
     uint from, to;
     sscanf(line, "%u %u\n", &from, &to);
     // condition to ensure the removal of self-transition
-    if (from == to) continue;
+    if (from == to)
+    {
+      (*E)--;
+      continue;
+    }
     // append to L[from] vector a to node
     append(L, C, from, to);
   }
@@ -111,7 +115,11 @@ int read_graph_reverse(char const * filename, uint** R, uint* RC, uint* LC, uint
     uint from, to;
     sscanf(line, "%u %u\n", &from, &to);
     // condition to ensure the removal of self-transition
-    if (from == to) continue;
+    if (from == to)
+    {
+      (*E)--;
+      continue;
+    }
     // append to L[from] vector a to node
     LC[from] += 1;
     append(R, RC, to, from);

@@ -52,4 +52,5 @@ void print_sparse_matrix(uint** L, uint* C, uint N)
     }
     printf("\n");
   }
+  printf("\n");
 }
