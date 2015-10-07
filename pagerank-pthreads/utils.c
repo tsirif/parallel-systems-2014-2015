@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "utils.h"
 
@@ -35,5 +36,20 @@ void reverse(uint** L, uint* LC, uint N, uint** R, uint* RC)
     {
       append(R, RC, L[i][j], i);
     }
+  }
+}
+
+void print_sparse_matrix(uint** L, uint* C, uint N)
+{
+  printf("======= Printing sparse matrix =======\n");
+  for (uint i = 0; i < N; ++i)
+  {
+    printf("from node: %u\n", i);
+    printf("to: ");
+    for (uint j = 0; j < C[i]; ++j)
+    {
+      printf("%u ", L[i][j]);
+    }
+    printf("\n");
   }
 }
