@@ -33,7 +33,6 @@
 *.tar
 
 # Text/Log Files
-*.txt
 *.swp
 *.log
 *.pdf
@@ -47,3 +46,6 @@
 *.png
 *.plt
 *.cvdata
+
+# build subdirs
+build/

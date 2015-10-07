@@ -32,7 +32,7 @@ int read_graph(char const * filename, uint** L, uint* C, uint* N, uint* E)
   {
     fgets(line, sizeof(line), fin);
     // ignore sentences starting from #
-    if (strncmp(line[0], "#", 1) == 0)
+    if (strncmp(line, "#", 1) == 0)
     {
       // read number of nodes and edges
       if (strstr(line, "Nodes") != NULL)
@@ -40,8 +40,8 @@ int read_graph(char const * filename, uint** L, uint* C, uint* N, uint* E)
         sscanf(line, "# Nodes: %u Edges: %u\n", N, E);
         capacity = (uint*) malloc((*N) * sizeof(uint));
         L = (uint**) malloc((*N) * sizeof(uint*));
-        C = (uint*) calloc((*N) * sizeof(uint));
-        for (int i = 0; i < *N; i++)
+        C = (uint*) calloc(0, (*N) * sizeof(uint));
+        for (uint i = 0; i < *N; i++)
         {
           capacity[i] = DFL_CAPACITY;
           L[i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
@@ -70,7 +70,7 @@ int read_graph(char const * filename, uint** L, uint* C, uint* N, uint* E)
  * @param E [unsinged int *] number of edges
  * @return if operation is successful or not
  */
-int read_graph_reverse(char const * filename, uint** R, uint* RC, uint* RL, uint* N, uint* E)
+int read_graph_reverse(char const * filename, uint** R, uint* RC, uint* LC, uint* N, uint* E)
 {
   if (capacity) free((void*)capacity);
   capacity = NULL;
@@ -89,7 +89,7 @@ int read_graph_reverse(char const * filename, uint** R, uint* RC, uint* RL, uint
   {
     fgets(line, sizeof(line), fin);
     // ignore sentences starting from #
-    if (strncmp(line[0], "#", 1) == 0)
+    if (strncmp(line, "#", 1) == 0)
     {
       // read number of nodes and edges
       if (strstr(line, "Nodes") != NULL)
@@ -97,9 +97,9 @@ int read_graph_reverse(char const * filename, uint** R, uint* RC, uint* RL, uint
         sscanf(line, "# Nodes: %u Edges: %u\n", N, E);
         capacity = (uint*) malloc((*N) * sizeof(uint));
         R = (uint**) malloc((*N) * sizeof(uint*));
-        RC = (uint*) calloc((*N) * sizeof(uint));
-        LC = (uint*) calloc((*N) * sizeof(uint));
-        for (int i = 0; i < *N; i++)
+        RC = (uint*) calloc(0, (*N) * sizeof(uint));
+        LC = (uint*) calloc(0, (*N) * sizeof(uint));
+        for (uint i = 0; i < *N; i++)
         {
           capacity[i] = DFL_CAPACITY;
           R[i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));

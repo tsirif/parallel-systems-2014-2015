@@ -20,16 +20,16 @@ void reverse(uint** L, uint* LC, uint N, uint** R, uint* RC)
 {
   if (capacity) free((void*)capacity);
   capacity = NULL;
-  capacity = (uint*) malloc((*N) * sizeof(uint));
-  R = (uint**) malloc((*N) * sizeof(uint*));
-  RC = (uint*) calloc(*N * sizeof(uint));
-  for (int i = 0; i < N; i++)
+  capacity = (uint*) malloc(N * sizeof(uint));
+  R = (uint**) malloc(N * sizeof(uint*));
+  RC = (uint*) calloc(0, N * sizeof(uint));
+  for (uint i = 0; i < N; i++)
   {
     capacity[i] = DFL_CAPACITY;
     R[i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
   }
 
-  int i, j;
+  uint i, j;
   for (i = 0; i < N; ++i)
   {
     for (j = 0; j < LC[i]; ++j)
