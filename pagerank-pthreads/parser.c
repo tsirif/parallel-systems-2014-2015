@@ -40,7 +40,7 @@ int read_graph(char const * filename, uint** L, uint* C, uint* N, uint* E)
         sscanf(line, "# Nodes: %u Edges: %u\n", N, E);
         capacity = (uint*) malloc((*N) * sizeof(uint));
         L = (uint**) malloc((*N) * sizeof(uint*));
-        C = (uint*) calloc(*N * sizeof(uint));
+        C = (uint*) calloc((*N) * sizeof(uint));
         for (int i = 0; i < *N; i++)
         {
           capacity[i] = DFL_CAPACITY;
@@ -63,13 +63,14 @@ int read_graph(char const * filename, uint** L, uint* C, uint* N, uint* E)
 /**
  * @brief read a directed graph from a file
  * @param filename [char const *] input file's name
- * @param L [unsigned int **] reverse transition sparse matrix
- * @param C [unsigned int *] output edges per node array
+ * @param R [unsigned int **] reverse transition sparse matrix
+ * @param RC [unsigned int *] output edges coming to a node
+ * @param LC [unsigned int *] output edges exiting a node
  * @param N [unsigned int *] number of nodes
  * @param E [unsinged int *] number of edges
  * @return if operation is successful or not
  */
-int read_graph_reverse(char const * filename, uint** R, uint* C, uint* N, uint* E)
+int read_graph_reverse(char const * filename, uint** R, uint* RC, uint* RL, uint* N, uint* E)
 {
   if (capacity) free((void*)capacity);
   capacity = NULL;
@@ -96,7 +97,8 @@ int read_graph_reverse(char const * filename, uint** R, uint* C, uint* N, uint* 
         sscanf(line, "# Nodes: %u Edges: %u\n", N, E);
         capacity = (uint*) malloc((*N) * sizeof(uint));
         R = (uint**) malloc((*N) * sizeof(uint*));
-        C = (uint*) calloc(*N * sizeof(uint));
+        RC = (uint*) calloc((*N) * sizeof(uint));
+        LC = (uint*) calloc((*N) * sizeof(uint));
         for (int i = 0; i < *N; i++)
         {
           capacity[i] = DFL_CAPACITY;
@@ -111,7 +113,8 @@ int read_graph_reverse(char const * filename, uint** R, uint* C, uint* N, uint* 
     // condition to ensure the removal of self-transition
     if (from == to) continue;
     // append to L[from] vector a to node
-    append(R, C, to, from);
+    LC[from] += 1;
+    append(R, RC, to, from);
   }
   return 0;
 }
