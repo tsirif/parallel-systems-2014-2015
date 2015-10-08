@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "utils.h"
+#include "pagerank_pthreads/utils.h"
 
 uint* capacity = NULL;
 
@@ -13,7 +13,7 @@ void append(uint** L, uint* C, uint index, uint value)
     L[index] = (uint*) realloc(L[index], capacity[index] * sizeof(uint));
   }
   L[index][C[index]] = value;
-  C[index] += 1;
+  (C[index])++;
 }
 
 void reverse(uint** L, uint* LC, uint N, uint** R, uint* RC)
@@ -42,9 +42,10 @@ void reverse(uint** L, uint* LC, uint N, uint** R, uint* RC)
 void print_sparse_matrix(uint** L, uint* C, uint N)
 {
   printf("======= Printing sparse matrix =======\n");
+  printf("This matrix has %u nodes.\n", N);
   for (uint i = 0; i < N; ++i)
   {
-    printf("from node: %u\n", i);
+    printf("from node: %u (goes to %u nodes)\n", i, C[i]);
     printf("to: ");
     for (uint j = 0; j < C[i]; ++j)
     {

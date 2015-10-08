@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pagerank-pthreads C)
+project(pagerank_pthreads C)
 
 find_package(Threads REQUIRED)
 
