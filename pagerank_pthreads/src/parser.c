@@ -23,7 +23,7 @@ int read_graph(char const * filename, uint*** L, uint** C, uint* N, uint* E)
   if (fin == NULL)
   {
     printf("Error opening input file: %s\n", filename);
-    exit(0);
+    exit(1);
   }
 
   char line[1000];
@@ -64,6 +64,8 @@ int read_graph(char const * filename, uint*** L, uint** C, uint* N, uint* E)
     // append to L[from] vector a to node
     append(*L, *C, from, to);
   }
+
+  fclose(fin);
   return 0;
 }
 
@@ -87,7 +89,7 @@ int read_graph_reverse(char const * filename, uint*** R, uint** RC, uint** LC, u
   if (fin == NULL)
   {
     printf("Error opening input file: %s\n", filename);
-    exit(0);
+    exit(1);
   }
 
   char line[1000];
@@ -130,5 +132,7 @@ int read_graph_reverse(char const * filename, uint*** R, uint** RC, uint** LC, u
     LC[0][from] += 1;
     append(*R, *RC, to, from);
   }
+
+  fclose(fin);
   return 0;
 }
