@@ -12,23 +12,35 @@ void append(uint** L, uint* C, uint index, uint value)
   if (C[index] == capacity[index])
   {
     capacity[index] += DFL_CAPACITY;
-    L[index] = (uint*) realloc(L[index], capacity[index] * sizeof(uint));
+    uint* tmp;
+    tmp = (uint*) realloc(L[index], capacity[index] * sizeof(uint));
+    if (tmp == NULL)
+    {
+      printf("Error resizing L[%u] to capacity %u\n", index, capacity[index]);
+      exit(1);
+    }
+    L[index] = tmp;
   }
   L[index][C[index]] = value;
-  (C[index])++;
+  C[index] += 1;
 }
 
-void reverse(uint** L, uint* LC, uint N, uint** R, uint* RC)
+void reverse(uint** L, uint* LC, uint N, uint*** R, uint** RC)
 {
   if (capacity) free((void*)capacity);
   capacity = NULL;
   capacity = (uint*) malloc(N * sizeof(uint));
-  R = (uint**) malloc(N * sizeof(uint*));
-  RC = (uint*) calloc(0, N * sizeof(uint));
+  if (capacity == NULL) exit(-1);
+  *R = (uint**) malloc(N * sizeof(uint*));
+  if (*R == NULL) exit(-1);
+  *RC = (uint*) malloc(N * sizeof(uint));
+  if (*RC == NULL) exit(-1);
   for (uint i = 0; i < N; i++)
   {
+    RC[0][i] = 0.0;
     capacity[i] = DFL_CAPACITY;
-    R[i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
+    R[0][i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
+    if (R[0][i] == NULL) exit(-1);
   }
 
   uint i, j;
@@ -36,7 +48,7 @@ void reverse(uint** L, uint* LC, uint N, uint** R, uint* RC)
   {
     for (j = 0; j < LC[i]; ++j)
     {
-      append(R, RC, L[i][j], i);
+      append(*R, *RC, L[i][j], i);
     }
   }
 }
@@ -88,12 +100,12 @@ void output_pagerank_vector(char const * output, char const * input,
   fprintf(fout, "# Nodes: %u Edges: %u\n", N, E);
   fprintf(fout, "# Converged in %d iterations with %f convergence error\n",
       cnt, ERR);
-  fprintf(fout, "# pagerank vector: node - pagerank-probability\n");
+  fprintf(fout, "# pagerank vector: node - pagerank-probability (permyriad)\n");
   for (uint i = 0; i < N - 1; ++i)
   {
-    fprintf(fout, "%u %f\n", i, x[i]);
+    fprintf(fout, "%u %f\n", i, x[i] * 10000);
   }
-  fprintf(fout, "%u %f", N - 1, x[N - 1]);
+  fprintf(fout, "%u %f", N - 1, x[N - 1] * 10000);
 
   fclose(fout);
 }
@@ -116,7 +128,7 @@ void output_ranked_nodes(char const * output, char const * input,
   fprintf(fout, "# Nodes: %u Edges: %u\n", N, E);
   fprintf(fout, "# Converged in %d iterations with %f convergence error\n",
       cnt, ERR);
-  fprintf(fout, "# ranked nodes: node - pagerank-probability\n");
+  fprintf(fout, "# ranked nodes: node - pagerank-probability (permyriad)\n");
 
   uint* nums;
   uint i;
@@ -129,9 +141,9 @@ void output_ranked_nodes(char const * output, char const * input,
 
   for (uint i = 0; i < N - 1; ++i)
   {
-    fprintf(fout, "%u %f\n", nums[i], x[nums[i]]);
+    fprintf(fout, "%u %f\n", nums[i], x[nums[i]] * 10000);
   }
-  fprintf(fout, "%u %f", nums[N - 1], x[nums[N - 1]]);
+  fprintf(fout, "%u %f", nums[N - 1], x[nums[N - 1]] * 10000);
 
   fclose(fout);
 }

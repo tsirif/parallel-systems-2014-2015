@@ -32,13 +32,15 @@ int main(int argc, char *argv[])
   }
 
   uint **L, *C, N, E;
-  // read transition matrix from input file
+  printf("Reading graph and save it to a matrix\n");
   read_graph(input, &L, &C, &N, &E);
 
   FLOAT *x;
   int cnt;
+  printf("Execute power pagerank algorithm\n");
   cnt = pagerank_power(L, C, &x, N);
 
+  printf("Output result to file\n");
   if (opt)
   {
     output_ranked_nodes(output, input, cnt, x, N, E);

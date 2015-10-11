@@ -50,12 +50,14 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
 {
   const FLOAT p = 0.85;
   const FLOAT delta = (1 - p) / N;
-  *x = (FLOAT*) calloc(1 / (FLOAT) N,  N * sizeof(FLOAT));
+  *x = (FLOAT*) malloc(N * sizeof(FLOAT));
+  if (*x == NULL) exit(-2);
+  fill(*x, 1 / (FLOAT) N, N);
   FLOAT *z, *tmp;
   z = (FLOAT*) malloc(N * sizeof(FLOAT));
-  if (z == NULL) exit(2);
+  if (z == NULL) exit(-2);
   tmp = (FLOAT*) malloc(N * sizeof(FLOAT));
-  if (tmp == NULL) exit(2);
+  if (tmp == NULL) exit(-2);
   int cnt = 0;
   do
   {

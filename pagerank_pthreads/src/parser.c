@@ -41,12 +41,17 @@ int read_graph(char const * filename, uint*** L, uint** C, uint* N, uint* E)
         sscanf(line, "# Nodes: %u Edges: %u\n", N, E);
         e = *E;
         capacity = (uint*) malloc((*N) * sizeof(uint));
+        if (capacity == NULL) exit(-1);
         *L = (uint**) malloc((*N) * sizeof(uint*));
-        *C = (uint*) calloc(0, (*N) * sizeof(uint));
+        if (*L == NULL) exit(-1);
+        *C = (uint*) malloc((*N) * sizeof(uint));
+        if (*C == NULL) exit(-1);
         for (uint i = 0; i < *N; i++)
         {
           capacity[i] = DFL_CAPACITY;
-          L[0][i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
+          C[0][i] = 0;
+          L[0][i] = (uint*) malloc(capacity[i] * sizeof(uint));
+          if (L[0][i] == NULL) exit(-1);
         }
       }
       continue;
@@ -107,13 +112,20 @@ int read_graph_reverse(char const * filename, uint*** R, uint** RC, uint** LC, u
         sscanf(line, "# Nodes: %u Edges: %u\n", N, E);
         e = *E;
         capacity = (uint*) malloc((*N) * sizeof(uint));
+        if (capacity == NULL) exit(-1);
         *R = (uint**) malloc((*N) * sizeof(uint*));
-        *RC = (uint*) calloc(0, (*N) * sizeof(uint));
-        *LC = (uint*) calloc(0, (*N) * sizeof(uint));
+        if (*R == NULL) exit(-1);
+        *RC = (uint*) malloc((*N) * sizeof(uint));
+        if (*RC == NULL) exit(-1);
+        *LC = (uint*) malloc((*N) * sizeof(uint));
+        if (*LC == NULL) exit(-1);
         for (uint i = 0; i < *N; i++)
         {
+          RC[0][i] = 0.0;
+          LC[0][i] = 0.0;
           capacity[i] = DFL_CAPACITY;
           R[0][i] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
+          if (R[0][i] == NULL) exit(-1);
         }
       }
       continue;
