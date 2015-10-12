@@ -23,12 +23,12 @@ typedef struct _thread_data_t
   FLOAT* maximum;
 } thread_data_t;
 
-inline FLOAT max(FLOAT const * x, uint start, uint finish);
-inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, uint finish);
-inline void swap(FLOAT** x, FLOAT** y);
-inline void fill(FLOAT* x, FLOAT value, uint start, uint finish);
-inline void multiply(FLOAT* x, FLOAT value, uint start, uint finish);
-inline void add(FLOAT* x, FLOAT value, uint start, uint finish);
+FLOAT max(FLOAT const * x, uint start, uint finish);
+void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, uint finish);
+void swap(FLOAT** x, FLOAT** y);
+void fill(FLOAT* x, FLOAT value, uint start, uint finish);
+void multiply(FLOAT* x, FLOAT value, uint start, uint finish);
+void add(FLOAT* x, FLOAT value, uint start, uint finish);
 
 void* thread_pagerank_power(void* arg);
 

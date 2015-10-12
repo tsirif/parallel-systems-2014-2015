@@ -19,6 +19,9 @@ set_target_properties(${PROJECT_NAME}_utils_double PROPERTIES
 add_library(${PROJECT_NAME}_parser
   src/parser.c
   )
+target_link_libraries(${PROJECT_NAME}_parser
+  ${PROJECT_NAME}_utils_float
+  )
 
 add_library(${PROJECT_NAME}_pagerank_single_float
   src/pagerank_single.c

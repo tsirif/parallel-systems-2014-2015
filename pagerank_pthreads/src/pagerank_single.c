@@ -4,7 +4,7 @@
 #include "pagerank_pthreads/defines.h"
 #include "pagerank_pthreads/pagerank_single.h"
 
-FLOAT max(FLOAT const * x, uint N)
+inline FLOAT max(FLOAT const * x, uint N)
 {
   FLOAT max_val = 0.0;
   for (uint i = 0; i < N; ++i)
@@ -12,32 +12,32 @@ FLOAT max(FLOAT const * x, uint N)
   return max_val;
 }
 
-void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N)
+inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N)
 {
   for (uint i = 0; i < N; ++i)
     res[i] = fabs(x[i] - y[i]);
 }
 
-void swap(FLOAT** x, FLOAT** y)
+inline void swap(FLOAT** x, FLOAT** y)
 {
   FLOAT* tmp = *x;
   *x = *y;
   *y = tmp;
 }
 
-void fill(FLOAT* x, FLOAT value, uint N)
+inline void fill(FLOAT* x, FLOAT value, uint N)
 {
   for (uint i = 0; i < N; ++i)
     x[i] = value;
 }
 
-void multiply(FLOAT* x, FLOAT value, uint N)
+inline void multiply(FLOAT* x, FLOAT value, uint N)
 {
   for (uint i = 0; i < N; ++i)
     x[i] *= value;
 }
 
-void add(FLOAT* x, FLOAT value, uint N)
+inline void add(FLOAT* x, FLOAT value, uint N)
 {
   for (uint i = 0; i < N; ++i)
     x[i] += value;

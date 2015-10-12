@@ -3,12 +3,12 @@
 
 #include "pagerank_pthreads/defines.h"
 
-inline FLOAT max(FLOAT const * x, uint N);
-inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N);
-inline void swap(FLOAT** x, FLOAT** y);
-inline void fill(FLOAT* x, FLOAT value, uint N);
-inline void multiply(FLOAT* x, FLOAT value, uint N);
-inline void add(FLOAT* x, FLOAT value, uint N);
+FLOAT max(FLOAT const * x, uint N);
+void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N);
+void swap(FLOAT** x, FLOAT** y);
+void fill(FLOAT* x, FLOAT value, uint N);
+void multiply(FLOAT* x, FLOAT value, uint N);
+void add(FLOAT* x, FLOAT value, uint N);
 
 /**
  * @brief function that calculates pagerank vector with power method
