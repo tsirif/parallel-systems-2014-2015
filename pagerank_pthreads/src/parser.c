@@ -67,7 +67,7 @@ int read_graph(char const * filename, uint*** L, uint** C, uint* N, uint* E)
       continue;
     }
     // append to L[from] vector a to node
-    append(*L, *C, from, to);
+    append(*L, *C, capacity, from, to);
   }
 
   fclose(fin);
@@ -142,7 +142,7 @@ int read_graph_reverse(char const * filename, uint*** R, uint** RC, uint** LC, u
     }
     // append to L[from] vector a to node
     LC[0][from] += 1;
-    append(*R, *RC, to, from);
+    append(*R, *RC, capacity, to, from);
   }
 
   fclose(fin);

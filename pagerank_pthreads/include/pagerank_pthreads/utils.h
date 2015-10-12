@@ -5,7 +5,7 @@
 
 extern uint* capacity;
 
-void append(uint** L, uint* C, uint index, uint value);
+void append(uint** L, uint* C, uint* cap, uint index, uint value);
 void reverse(uint** L, uint* LC, uint N, uint*** R, uint** RC);
 
 int read_graph(char const * filename, uint*** L, uint** C, uint* N, uint* E);

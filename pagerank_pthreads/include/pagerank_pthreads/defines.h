@@ -9,7 +9,7 @@
 #define FLOAT float
 #endif  // DOUBLE
 
-#define ERR 0.0001
+#define ERR 0.00001
 
 typedef uint32_t uint;
 

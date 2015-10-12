@@ -7,16 +7,16 @@
 uint* capacity = NULL;
 static FLOAT const * pagerank_vector = NULL;
 
-void append(uint** L, uint* C, uint index, uint value)
+void append(uint** L, uint* C, uint* cap, uint index, uint value)
 {
-  if (C[index] == capacity[index])
+  if (C[index] == cap[index])
   {
-    capacity[index] += DFL_CAPACITY;
+    cap[index] += DFL_CAPACITY;
     uint* tmp;
-    tmp = (uint*) realloc(L[index], capacity[index] * sizeof(uint));
+    tmp = (uint*) realloc(L[index], cap[index] * sizeof(uint));
     if (tmp == NULL)
     {
-      printf("Error resizing L[%u] to capacity %u\n", index, capacity[index]);
+      printf("Error resizing L[%u] to capacity %u\n", index, cap[index]);
       exit(1);
     }
     L[index] = tmp;
@@ -48,7 +48,7 @@ void reverse(uint** L, uint* LC, uint N, uint*** R, uint** RC)
   {
     for (j = 0; j < LC[i]; ++j)
     {
-      append(*R, *RC, L[i][j], i);
+      append(*R, *RC, capacity, L[i][j], i);
     }
   }
 }
@@ -103,9 +103,9 @@ void output_pagerank_vector(char const * output, char const * input,
   fprintf(fout, "# pagerank vector: node - pagerank-probability (permyriad)\n");
   for (uint i = 0; i < N - 1; ++i)
   {
-    fprintf(fout, "%u %f\n", i, x[i] * 10000);
+    fprintf(fout, "%u %.0f\n", i, x[i] / ERR / 10);
   }
-  fprintf(fout, "%u %f", N - 1, x[N - 1] * 10000);
+  fprintf(fout, "%u %.0f", N - 1, x[N - 1] / ERR / 10);
 
   fclose(fout);
 }
@@ -141,9 +141,9 @@ void output_ranked_nodes(char const * output, char const * input,
 
   for (uint i = 0; i < N - 1; ++i)
   {
-    fprintf(fout, "%u %f\n", nums[i], x[nums[i]] * 10000);
+    fprintf(fout, "%u %.0f\n", nums[i], x[nums[i]] / ERR / 10);
   }
-  fprintf(fout, "%u %f", nums[N - 1], x[nums[N - 1]] * 10000);
+  fprintf(fout, "%u %.0f", nums[N - 1], x[nums[N - 1]] / ERR / 10);
 
   fclose(fout);
 }
