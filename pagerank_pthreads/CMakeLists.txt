@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pagerank_pthreads C)
+include(CTest)
 
 find_package(Threads REQUIRED)
 
@@ -99,4 +100,6 @@ set_target_properties(pagerank_pthreads_double PROPERTIES
   COMPILE_DEFINITIONS "PTHREADS"
   )
 
-add_subdirectory(test)
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

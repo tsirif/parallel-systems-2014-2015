@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#ifndef NDEBUG
-#define NDEBUG
-#endif
+/* #ifndef NDEBUG */
+/* #define NDEBUG */
+/* #endif         */
 #include <assert.h>
 
 #include "pagerank_pthreads/pagerank_single.h"
@@ -79,16 +79,38 @@ int main()
   TEST_EQ_FLOAT(y[2], 3.8);
   TEST_EQ_FLOAT(y[3], 4.6);
 
-  printf("\nTesting pagerank_power . . .\n");
   uint **L, *C, N, E;
   FLOAT* vector;
+  int cnt;
+  printf("\nTesting pagerank_power . . .\n");
+  printf("Input: example-matrix.txt\n");
   read_graph("example-matrix.txt", &L, &C, &N, &E);
   print_sparse_matrix(L, C, N);
-  int cnt = pagerank_power(L, C, &vector, N);
+  cnt = pagerank_power(L, C, &vector, N);
   TEST_EQ_INT(cnt, 21);
   TEST_EQ_FLOAT(vector[0], 0.2148115);
   TEST_EQ_FLOAT(vector[1], 0.39739672);
   TEST_EQ_FLOAT(vector[2], 0.38779177);
+  free((void*)vector);
+  free((void*)C);
+  for (uint i = 0; i < N; ++i)
+    free((void*)L[i]);
+  free((void*)L);
+
+  printf("Input: example-matrix2.txt\n");
+  read_graph("example-matrix2.txt", &L, &C, &N, &E);
+  print_sparse_matrix(L, C, N);
+  cnt = pagerank_power(L, C, &vector, N);
+  TEST_EQ_INT(cnt, 13);
+  TEST_EQ_FLOAT(vector[0], 0.21087017);
+  TEST_EQ_FLOAT(vector[1], 0.30049172);
+  TEST_EQ_FLOAT(vector[2], 0.32721533);
+  TEST_EQ_FLOAT(vector[3], 0.16142278);
+  free((void*)vector);
+  free((void*)C);
+  for (uint i = 0; i < N; ++i)
+    free((void*)L[i]);
+  free((void*)L);
 
   return 0;
 }
