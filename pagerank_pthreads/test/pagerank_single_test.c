@@ -87,10 +87,10 @@ int main()
   read_graph("example-matrix.txt", &L, &C, &N, &E);
   print_sparse_matrix(L, C, N);
   cnt = pagerank_power(L, C, &vector, N);
-  TEST_EQ_INT(cnt, 21);
-  TEST_EQ_FLOAT(vector[0], 0.2148115);
-  TEST_EQ_FLOAT(vector[1], 0.39739672);
-  TEST_EQ_FLOAT(vector[2], 0.38779177);
+  TEST_EQ_INT(cnt, 25);
+  TEST_EQ_FLOAT(vector[0], 0.21481051);
+  TEST_EQ_FLOAT(vector[1], 0.39740004);
+  TEST_EQ_FLOAT(vector[2], 0.38778944);
   free((void*)vector);
   free((void*)C);
   for (uint i = 0; i < N; ++i)
@@ -101,11 +101,11 @@ int main()
   read_graph("example-matrix2.txt", &L, &C, &N, &E);
   print_sparse_matrix(L, C, N);
   cnt = pagerank_power(L, C, &vector, N);
-  TEST_EQ_INT(cnt, 13);
-  TEST_EQ_FLOAT(vector[0], 0.21087017);
-  TEST_EQ_FLOAT(vector[1], 0.30049172);
-  TEST_EQ_FLOAT(vector[2], 0.32721533);
-  TEST_EQ_FLOAT(vector[3], 0.16142278);
+  TEST_EQ_INT(cnt, 17);
+  TEST_EQ_FLOAT(vector[0], 0.21087014);
+  TEST_EQ_FLOAT(vector[1], 0.30048969);
+  TEST_EQ_FLOAT(vector[2], 0.32721841);
+  TEST_EQ_FLOAT(vector[3], 0.16142176);
   free((void*)vector);
   free((void*)C);
   for (uint i = 0; i < N; ++i)

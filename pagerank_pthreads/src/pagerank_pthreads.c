@@ -21,6 +21,17 @@ inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, u
     res[i] = fabs(x[i] - y[i]);
 }
 
+inline FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint start, uint finish)
+{
+  FLOAT max_val = 0.0, val = 0.0;
+  for (uint i = start; i < finish; ++i)
+  {
+    val = fabs(x[i] - y[i]);
+    max_val = (max_val < val) ? val : max_val;
+  }
+  return max_val;
+}
+
 inline void swap(FLOAT** x, FLOAT** y)
 {
   FLOAT* tmp = *x;
@@ -104,8 +115,7 @@ void* thread_pagerank_power(void* arg)
     add(*(data->xPtr), well_prob / data->N, start, end);
     multiply(*(data->xPtr), p, start, end);
     add(*(data->xPtr), delta, start, end);
-    abs_diff(*(data->xPtr), *(data->zPtr), data->tmp, start, end);
-    data->maximum[data->tid] = max(data->tmp, start, end);
+    data->maximum[data->tid] = max_abs_diff(*(data->xPtr), *(data->zPtr), start, end);
     ++cnt;
     // find global maximum and share knowledge across threads
     pthread_barrier_wait(data->barrierPtr);
@@ -129,13 +139,11 @@ void* thread_pagerank_power(void* arg)
 
 int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x, uint N)
 {
-  FLOAT *z, *tmp;
+  FLOAT *z;
   *x = (FLOAT*) malloc(N * sizeof(FLOAT));
   if (*x == NULL) exit(-2);
   z = (FLOAT*) malloc(N * sizeof(FLOAT));
   if (z == NULL) exit(-2);
-  tmp = (FLOAT*) malloc(N * sizeof(FLOAT));
-  if (tmp == NULL) exit(-2);
 
   pthread_t thr[NTHREADS];
   uint* wells[NTHREADS];
@@ -161,7 +169,6 @@ int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x,
     data[i].C = C;
     data[i].xPtr = x;
     data[i].zPtr = &z;
-    data[i].tmp = tmp;
     data[i].N = N;
     data[i].cnt = cnt;
     data[i].barrierPtr = &barrier;
@@ -198,7 +205,6 @@ int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x,
   }
 
   pthread_barrier_destroy(&barrier);
-  free((void*) tmp);
   free((void*) z);
   return counter;
 }

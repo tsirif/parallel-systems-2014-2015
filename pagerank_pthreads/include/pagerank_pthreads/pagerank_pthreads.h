@@ -3,7 +3,7 @@
 
 #include "pagerank_pthreads/defines.h"
 
-#define NTHREADS 8
+#define NTHREADS 2
 
 typedef struct _thread_data_t
 {
@@ -13,7 +13,6 @@ typedef struct _thread_data_t
   uint const * C;
   FLOAT** xPtr;
   FLOAT** zPtr;
-  FLOAT* tmp;
   uint N;
   int* cnt;
   pthread_barrier_t* barrierPtr;
@@ -25,6 +24,7 @@ typedef struct _thread_data_t
 
 FLOAT max(FLOAT const * x, uint start, uint finish);
 void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, uint finish);
+FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint start, uint finish);
 void swap(FLOAT** x, FLOAT** y);
 void fill(FLOAT* x, FLOAT value, uint start, uint finish);
 void multiply(FLOAT* x, FLOAT value, uint start, uint finish);

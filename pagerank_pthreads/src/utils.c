@@ -103,9 +103,9 @@ void output_pagerank_vector(char const * output, char const * input,
   fprintf(fout, "# pagerank vector: node - pagerank-probability (permyriad)\n");
   for (uint i = 0; i < N - 1; ++i)
   {
-    fprintf(fout, "%u %.0f\n", i, x[i] / ERR / 10);
+    fprintf(fout, "%u %.1f\n", i, x[i] * 10000);
   }
-  fprintf(fout, "%u %.0f", N - 1, x[N - 1] / ERR / 10);
+  fprintf(fout, "%u %.1f", N - 1, x[N - 1] * 10000);
 
   fclose(fout);
 }
@@ -141,9 +141,9 @@ void output_ranked_nodes(char const * output, char const * input,
 
   for (uint i = 0; i < N - 1; ++i)
   {
-    fprintf(fout, "%u %.0f\n", nums[i], x[nums[i]] / ERR / 10);
+    fprintf(fout, "%u %.1f\n", nums[i], x[nums[i]] * 10000);
   }
-  fprintf(fout, "%u %.0f", nums[N - 1], x[nums[N - 1]] / ERR / 10);
+  fprintf(fout, "%u %.1f", nums[N - 1], x[nums[N - 1]] * 10000);
 
   fclose(fout);
 }

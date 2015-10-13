@@ -9,10 +9,10 @@
 #define FLOAT float
 #endif  // DOUBLE
 
-#define ERR 0.00001
+#define ERR 0.000001
 
 typedef uint32_t uint;
 
-#define DFL_CAPACITY 10
+#define DFL_CAPACITY 50
 
 #endif  // PAGERANK_PTHREADS_DEFINES_H

@@ -5,6 +5,7 @@
 
 FLOAT max(FLOAT const * x, uint N);
 void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N);
+FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint N);
 void swap(FLOAT** x, FLOAT** y);
 void fill(FLOAT* x, FLOAT value, uint N);
 void multiply(FLOAT* x, FLOAT value, uint N);

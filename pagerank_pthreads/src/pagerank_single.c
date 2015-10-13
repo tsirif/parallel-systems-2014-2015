@@ -18,6 +18,17 @@ inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N)
     res[i] = fabs(x[i] - y[i]);
 }
 
+inline FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint N)
+{
+  FLOAT max_val = 0.0, val = 0.0;
+  for (uint i = 0; i < N; ++i)
+  {
+    val = fabs(x[i] - y[i]);
+    max_val = (max_val < val) ? val : max_val;
+  }
+  return max_val;
+}
+
 inline void swap(FLOAT** x, FLOAT** y)
 {
   FLOAT* tmp = *x;
@@ -52,12 +63,10 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
   const FLOAT delta = (1 - p) / N;
   *x = (FLOAT*) malloc(N * sizeof(FLOAT));
   if (*x == NULL) exit(-2);
-  fill(*x, 1 / (FLOAT) N, N);
-  FLOAT *z, *tmp;
+  FLOAT *z;
   z = (FLOAT*) malloc(N * sizeof(FLOAT));
   if (z == NULL) exit(-2);
-  tmp = (FLOAT*) malloc(N * sizeof(FLOAT));
-  if (tmp == NULL) exit(-2);
+  fill(*x, 1 / (FLOAT) N, N);
   int cnt = 0;
   do
   {
@@ -83,10 +92,8 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
     multiply(*x, p, N);
     add(*x, delta, N);
     ++cnt;
-    abs_diff(*x, z, tmp, N);
-  } while (max(tmp, N) >= ERR);
+  } while (max_abs_diff(*x, z, N) >= ERR);
 
-  free((void*) tmp);
   free((void*) z);
   return cnt;
 }
