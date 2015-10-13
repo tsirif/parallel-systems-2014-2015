@@ -61,13 +61,14 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
   int cnt = 0;
   do
   {
+    FLOAT well_prob = 0.0;
     swap(x, &z);
     fill(*x, 0.0, N);
     for (uint i = 0; i < N; ++i)
     {
       if (C[i] == 0)
       {
-        add(*x, z[i] / N, N);
+        well_prob += z[i];
       }
       else
       {
@@ -78,6 +79,7 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
         }
       }
     }
+    add(*x, well_prob / N, N);
     multiply(*x, p, N);
     add(*x, delta, N);
     ++cnt;

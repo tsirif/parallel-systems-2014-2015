@@ -93,15 +93,15 @@ void* thread_pagerank_power(void* arg)
         data->xPtr[0][i] += data->zPtr[0][coming] / data->C[coming];
       }
     }
+    FLOAT well_prob = 0.0;
     for (int ki = 0; ki < NTHREADS; ++ki)
     {
       for (int kj = 0; kj < data->wells_c[ki]; ++kj)
       {
-        FLOAT tmp = data->zPtr[0][data->wells[ki][kj]] / data->N;
-        for (uint i = start; i < end; ++i)
-          data->xPtr[0][i] += tmp;
+        well_prob += data->zPtr[0][data->wells[ki][kj]];
       }
     }
+    add(*(data->xPtr), well_prob / data->N, start, end);
     multiply(*(data->xPtr), p, start, end);
     add(*(data->xPtr), delta, start, end);
     abs_diff(*(data->xPtr), *(data->zPtr), data->tmp, start, end);
