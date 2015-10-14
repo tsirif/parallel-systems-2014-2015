@@ -35,7 +35,8 @@ void reverse(uint** L, uint* LC, uint N, uint*** R, uint** RC)
   if (*R == NULL) exit(-1);
   *RC = (uint*) malloc(N * sizeof(uint));
   if (*RC == NULL) exit(-1);
-  for (uint i = 0; i < N; i++)
+  uint i, j;
+  for (i = 0; i < N; i++)
   {
     RC[0][i] = 0.0;
     capacity[i] = DFL_CAPACITY;
@@ -43,7 +44,6 @@ void reverse(uint** L, uint* LC, uint N, uint*** R, uint** RC)
     if (R[0][i] == NULL) exit(-1);
   }
 
-  uint i, j;
   for (i = 0; i < N; ++i)
   {
     for (j = 0; j < LC[i]; ++j)
@@ -101,7 +101,8 @@ void output_pagerank_vector(char const * output, char const * input,
   fprintf(fout, "# Converged in %d iterations with %f convergence error\n",
       cnt, ERR);
   fprintf(fout, "# pagerank vector: node - pagerank-probability (permyriad)\n");
-  for (uint i = 0; i < N - 1; ++i)
+  uint i = 0;
+  for (i = 0; i < N - 1; ++i)
   {
     fprintf(fout, "%u %.0f\n", i, x[i] * 10000);
   }
@@ -139,7 +140,7 @@ void output_ranked_nodes(char const * output, char const * input,
   pagerank_vector = x;
   qsort(nums, N, sizeof(uint), rank);
 
-  for (uint i = 0; i < N - 1; ++i)
+  for (i = 0; i < N - 1; ++i)
   {
     fprintf(fout, "%u %.0f\n", nums[i], x[nums[i]] * 10000);
   }
