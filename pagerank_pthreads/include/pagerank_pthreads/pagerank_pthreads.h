@@ -3,23 +3,7 @@
 
 #include "pagerank_pthreads/defines.h"
 
-#define NTHREADS 8
-
-typedef struct _thread_data_t
-{
-  int tid;
-  uint * const * R;
-  uint const * RC;
-  uint const * C;
-  FLOAT** xPtr;
-  FLOAT** zPtr;
-  uint N;
-  int* cnt;
-  pthread_barrier_t* barrierPtr;
-  uint* wells;
-  FLOAT* wells_prob;
-  FLOAT* maximum;
-} thread_data_t;
+#define NTHREADS 2
 
 FLOAT max(FLOAT const * x, uint start, uint finish);
 void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, uint finish);
@@ -33,15 +17,16 @@ void* thread_pagerank_power(void* arg);
 
 /**
  * @brief function that calculates pagerank vector with power method
- * @param R [uint const **] reverse sparse transition matrix
- * @param RC [uint const *] num of edges which enter a node
- * @param C [uint const *] num of edges which exit a node
+ * @param Rarg [uint const **] reverse sparse transition matrix
+ * @param RCarg [uint const *] num of edges which enter a node
+ * @param Carg [uint const *] num of edges which exit a node
  * @param x [FLOAT**] pointer to pagerank vector, will have final result
- * @param N [uint] num of nodes
+ * @param Narg [uint] num of nodes
  * @note FLOAT is a preprocessor definition which is resolved to float or double
  * type
  * @return num of iterations needed for the pagerank vector to converge
  */
-int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x, uint N);
+int pagerank_power(uint * const * Rarg, uint const * RCarg, uint const * Carg,
+    FLOAT** x, uint Narg);
 
 #endif  // PAGERANK_PTHREADS_PAGERANK_PTHREADS_H
