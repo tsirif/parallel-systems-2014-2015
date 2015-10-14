@@ -3,7 +3,7 @@
 
 #include "pagerank_pthreads/defines.h"
 
-#define NTHREADS 2
+#define NTHREADS 8
 
 FLOAT max(FLOAT const * x, uint start, uint finish);
 void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, uint finish);
