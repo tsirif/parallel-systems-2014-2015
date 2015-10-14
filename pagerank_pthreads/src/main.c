@@ -64,13 +64,14 @@ int main(int argc, char *argv[])
     output_pagerank_vector(output, input, cnt, x, N, E);
   }
 
+  uint i;
 #ifndef PTHREADS
-  for (uint i = 0; i < N; ++i)
+  for (i = 0; i < N; ++i)
     free((void*) L[i]);
   free((void*) L);
   free((void*) C);
 #else
-  for (uint i = 0; i < N; ++i)
+  for (i = 0; i < N; ++i)
     free((void*) R[i]);
   free((void*) R);
   free((void*) RC);

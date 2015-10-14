@@ -9,21 +9,24 @@
 inline FLOAT max(FLOAT const * x, uint N)
 {
   FLOAT max_val = 0;
-  for (uint i = 0; i < N; ++i)
+  uint i;
+  for (i = 0; i < N; ++i)
     max_val = (max_val < x[i]) ? x[i] : max_val;
   return max_val;
 }
 
 inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint N)
 {
-  for (uint i = 0; i < N; ++i)
+  uint i;
+  for (i = 0; i < N; ++i)
     res[i] = fabs(x[i] - y[i]);
 }
 
 inline FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint N)
 {
   FLOAT max_val = 0, val = 0;
-  for (uint i = 0; i < N; ++i)
+  uint i;
+  for (i = 0; i < N; ++i)
   {
     val = fabs(x[i] - y[i]);
     max_val = (max_val < val) ? val : max_val;
@@ -40,19 +43,22 @@ inline void swap(FLOAT** x, FLOAT** y)
 
 inline void fill(FLOAT* x, FLOAT value, uint N)
 {
-  for (uint i = 0; i < N; ++i)
+  uint i;
+  for (i = 0; i < N; ++i)
     x[i] = value;
 }
 
 inline void multiply(FLOAT* x, FLOAT value, uint N)
 {
-  for (uint i = 0; i < N; ++i)
+  uint i;
+  for (i = 0; i < N; ++i)
     x[i] *= value;
 }
 
 inline void add(FLOAT* x, FLOAT value, uint N)
 {
-  for (uint i = 0; i < N; ++i)
+  uint i;
+  for (i = 0; i < N; ++i)
     x[i] += value;
 }
 
@@ -75,12 +81,13 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
   fill(*x, 1 / (FLOAT) N, N);
   int cnt = 0;
   FLOAT well_prob;
+  uint i, j;
   do
   {
     well_prob = 0;
     swap(x, &z);
     fill(*x, 0, N);
-    for (uint i = 0; i < N; ++i)
+    for (i = 0; i < N; ++i)
     {
       if (C[i] == 0)
       {
@@ -89,7 +96,7 @@ int pagerank_power(uint * const * L, uint const * C, FLOAT** x, uint N)
       else
       {
         FLOAT weight = z[i] / C[i];
-        for (uint j = 0; j < C[i]; ++j)
+        for (j = 0; j < C[i]; ++j)
         {
           x[0][L[i][j]] += weight;
         }

@@ -39,6 +39,7 @@
 
 int main()
 {
+  uint i;
   printf("Commencing test for pagerank_single.c\n");
 
   FLOAT x[4] = {0.0, 0.1, 0.2, 0.3};
@@ -93,7 +94,7 @@ int main()
   TEST_EQ_FLOAT(vector[2], 0.38778944);
   free((void*)vector);
   free((void*)C);
-  for (uint i = 0; i < N; ++i)
+  for (i = 0; i < N; ++i)
     free((void*)L[i]);
   free((void*)L);
 
@@ -108,7 +109,7 @@ int main()
   TEST_EQ_FLOAT(vector[3], 0.16142176);
   free((void*)vector);
   free((void*)C);
-  for (uint i = 0; i < N; ++i)
+  for (i = 0; i < N; ++i)
     free((void*)L[i]);
   free((void*)L);
 

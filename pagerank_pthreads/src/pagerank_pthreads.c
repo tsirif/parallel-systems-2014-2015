@@ -23,21 +23,24 @@ static FLOAT* maximum = NULL;
 inline FLOAT max(FLOAT const * x, uint start, uint finish)
 {
   FLOAT max_val = 0;
-  for (uint i = start; i < finish; ++i)
+  uint i;
+  for (i = start; i < finish; ++i)
     max_val = (max_val < x[i]) ? x[i] : max_val;
   return max_val;
 }
 
 inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, uint finish)
 {
-  for (uint i = start; i < finish; ++i)
+  uint i;
+  for (i = start; i < finish; ++i)
     res[i] = fabs(x[i] - y[i]);
 }
 
 inline FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint start, uint finish)
 {
   FLOAT max_val = 0, val = 0;
-  for (uint i = start; i < finish; ++i)
+  uint i;
+  for (i = start; i < finish; ++i)
   {
     val = fabs(x[i] - y[i]);
     max_val = (max_val < val) ? val : max_val;
@@ -54,19 +57,22 @@ inline void swap(FLOAT** x, FLOAT** y)
 
 inline void fill(FLOAT* x, FLOAT value, uint start, uint finish)
 {
-  for (uint i = start; i < finish; ++i)
+  uint i;
+  for (i = start; i < finish; ++i)
     x[i] = value;
 }
 
 inline void multiply(FLOAT* x, FLOAT value, uint start, uint finish)
 {
-  for (uint i = start; i < finish; ++i)
+  uint i;
+  for (i = start; i < finish; ++i)
     x[i] *= value;
 }
 
 inline void add(FLOAT* x, FLOAT value, uint start, uint finish)
 {
-  for (uint i = start; i < finish; ++i)
+  uint i;
+  for (i = start; i < finish; ++i)
     x[i] += value;
 }
 

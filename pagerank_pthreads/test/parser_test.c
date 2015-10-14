@@ -25,6 +25,7 @@
 
 int main()
 {
+  uint i;
   printf("Commencing test for parser.c\n");
 
   uint **L, *C, N, E;
@@ -42,7 +43,7 @@ int main()
   TEST_EQ_UINT(L[2][0], 0);
   TEST_EQ_UINT(L[2][1], 1);
 
-  for (uint i = 0; i < N; ++i)
+  for (i = 0; i < N; ++i)
     free((void*) L[i]);
   free((void*) L);
   free((void*) C);
@@ -65,7 +66,7 @@ int main()
   TEST_EQ_UINT(L[1][1], 2);
   TEST_EQ_UINT(L[2][0], 1);
 
-  for (uint i = 0; i < N; ++i)
+  for (i = 0; i < N; ++i)
     free((void*) L[i]);
   free((void*) L);
   free((void*) C);

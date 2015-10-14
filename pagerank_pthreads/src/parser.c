@@ -46,7 +46,8 @@ int read_graph(char const * filename, uint*** L, uint** C, uint* N, uint* E)
         if (*L == NULL) exit(-1);
         *C = (uint*) malloc((*N) * sizeof(uint));
         if (*C == NULL) exit(-1);
-        for (uint i = 0; i < *N; i++)
+        uint i;
+        for (i = 0; i < *N; ++i)
         {
           capacity[i] = DFL_CAPACITY;
           C[0][i] = 0;
@@ -119,7 +120,8 @@ int read_graph_reverse(char const * filename, uint*** R, uint** RC, uint** LC, u
         if (*RC == NULL) exit(-1);
         *LC = (uint*) malloc((*N) * sizeof(uint));
         if (*LC == NULL) exit(-1);
-        for (uint i = 0; i < *N; i++)
+        uint i;
+        for (i = 0; i < *N; ++i)
         {
           RC[0][i] = 0.0;
           LC[0][i] = 0.0;

@@ -57,11 +57,12 @@ void print_sparse_matrix(uint** L, uint* C, uint N)
 {
   printf("======= Printing sparse matrix =======\n");
   printf("This matrix has %u nodes.\n", N);
-  for (uint i = 0; i < N; ++i)
+  uint i, j;
+  for (i = 0; i < N; ++i)
   {
     printf("from node: %u (goes to %u nodes)\n", i, C[i]);
     printf("to: ");
-    for (uint j = 0; j < C[i]; ++j)
+    for (j = 0; j < C[i]; ++j)
     {
       printf("%u ", L[i][j]);
     }
