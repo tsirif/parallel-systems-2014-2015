@@ -3,7 +3,7 @@
 
 #include "pagerank_pthreads/defines.h"
 
-#define NTHREADS 2
+#define NTHREADS 8
 
 typedef struct _thread_data_t
 {
@@ -16,9 +16,8 @@ typedef struct _thread_data_t
   uint N;
   int* cnt;
   pthread_barrier_t* barrierPtr;
-  uint** wells;
-  uint* wells_c;
-  uint* wells_cap;
+  uint* wells;
+  FLOAT* wells_prob;
   FLOAT* maximum;
 } thread_data_t;
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 #include "pagerank_pthreads/defines.h"
 #include "pagerank_pthreads/utils.h"
@@ -9,7 +10,7 @@
 
 inline FLOAT max(FLOAT const * x, uint start, uint finish)
 {
-  FLOAT max_val = 0.0;
+  FLOAT max_val = 0;
   for (uint i = start; i < finish; ++i)
     max_val = (max_val < x[i]) ? x[i] : max_val;
   return max_val;
@@ -23,7 +24,7 @@ inline void abs_diff(FLOAT const * x, FLOAT const * y, FLOAT* res, uint start, u
 
 inline FLOAT max_abs_diff(FLOAT const * x, FLOAT const * y, uint start, uint finish)
 {
-  FLOAT max_val = 0.0, val = 0.0;
+  FLOAT max_val = 0, val = 0;
   for (uint i = start; i < finish; ++i)
   {
     val = fabs(x[i] - y[i]);
@@ -77,78 +78,72 @@ void* thread_pagerank_power(void* arg)
   const FLOAT delta = (1 - p) / data->N;
 
   fill(*(data->zPtr), 1 / (FLOAT) data->N, start, end);
-  fill(*(data->xPtr), 0.0, start, end);
+  fill(*(data->xPtr), 0, start, end);
 
-  data->wells_c[data->tid] = 0;
-  data->wells_cap[data->tid] = DFL_CAPACITY;
-  data->wells[data->tid] = (uint*) malloc(DFL_CAPACITY * sizeof(uint));
-  if (data->wells[data->tid] == NULL) exit(-3);
-  for (uint i = start; i < end; ++i)
+  uint well_c, i, j;
+  for (i = well_c = start; i < end; ++i)
   {
     if (data->C[i] == 0)
-      append(data->wells, data->wells_c, data->wells_cap, data->tid, i);
+      data->wells[well_c++] = i;
   }
-  pthread_barrier_wait(data->barrierPtr);
 
+  FLOAT total_wells_prob, maximum;
   do
   {
     if (cnt != 0)
+      fill(*(data->xPtr), 0, start, end);
+    for (i = start; i < end; ++i)
     {
-      fill(*(data->xPtr), 0.0, start, end);
-    }
-    for (uint i = start; i < end; ++i)
-    {
-      for (uint j = 0; j < data->RC[i]; ++j)
+      for (j = 0; j < data->RC[i]; ++j)
       {
         uint coming = data->R[i][j];
         data->xPtr[0][i] += data->zPtr[0][coming] / data->C[coming];
       }
     }
-    FLOAT well_prob = 0.0;
-    for (int ki = 0; ki < NTHREADS; ++ki)
-    {
-      for (int kj = 0; kj < data->wells_c[ki]; ++kj)
-      {
-        well_prob += data->zPtr[0][data->wells[ki][kj]];
-      }
-    }
-    add(*(data->xPtr), well_prob / data->N, start, end);
+    total_wells_prob = 0;
+    for (i = start; i < well_c; ++i)
+      total_wells_prob += data->zPtr[0][data->wells[i]];
+    data->wells_prob[data->tid] = total_wells_prob;
+    pthread_barrier_wait(data->barrierPtr);
+    total_wells_prob = 0;
+    for (j = 0; j < NTHREADS; ++j)
+      total_wells_prob += data->wells_prob[j];
+    add(*(data->xPtr), total_wells_prob / data->N, start, end);
     multiply(*(data->xPtr), p, start, end);
     add(*(data->xPtr), delta, start, end);
     data->maximum[data->tid] = max_abs_diff(*(data->xPtr), *(data->zPtr), start, end);
     ++cnt;
     // find global maximum and share knowledge across threads
     pthread_barrier_wait(data->barrierPtr);
+    maximum = 0;
+    for (j = 0; j < NTHREADS; ++j)
+      maximum = (maximum < data->maximum[j]) ? data->maximum[j] : maximum;
     if (data->tid == 0)
-    {
-      FLOAT maximum = 0.0;
-      for (int i = 0; i < NTHREADS; ++i)
-        maximum = (maximum < data->maximum[i]) ? data->maximum[i] : maximum;
-      for (int i = 0; i < NTHREADS; ++i)
-        data->maximum[i] = maximum;
       swap(data->xPtr, data->zPtr);
-    }
     pthread_barrier_wait(data->barrierPtr);
-  } while (data->maximum[data->tid] >= ERR);
+  } while (maximum >= ERR);
 
   data->cnt[data->tid] = cnt;
 
-  free((void*)data->wells[data->tid]);
   pthread_exit(NULL);
 }
 
 int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x, uint N)
 {
   FLOAT *z;
+  uint* wells;
   *x = (FLOAT*) malloc(N * sizeof(FLOAT));
   if (*x == NULL) exit(-2);
   z = (FLOAT*) malloc(N * sizeof(FLOAT));
   if (z == NULL) exit(-2);
+  wells = (uint*) malloc(N * sizeof(uint));
+  if (wells == NULL) exit(-2);
+
+  struct timeval startwtime, endwtime;
+  gettimeofday(&startwtime, NULL);
 
   pthread_t thr[NTHREADS];
-  uint* wells[NTHREADS];
-  uint wells_c[NTHREADS], wells_cap[NTHREADS];
-  FLOAT maximum[NTHREADS];
+  FLOAT maximum[NTHREADS], wells_prob[NTHREADS];
   int cnt[NTHREADS];
   thread_data_t data[NTHREADS];
 
@@ -173,8 +168,7 @@ int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x,
     data[i].cnt = cnt;
     data[i].barrierPtr = &barrier;
     data[i].wells = wells;
-    data[i].wells_c = wells_c;
-    data[i].wells_cap = wells_cap;
+    data[i].wells_prob = wells_prob;
     data[i].maximum = maximum;
   }
 
@@ -194,6 +188,13 @@ int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x,
 
   swap(x, &z);
 
+  pthread_barrier_destroy(&barrier);
+
+  gettimeofday(&endwtime, NULL);
+  double pagerank_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
+      /1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+  printf("Time to compute pagerank vector: %f\n", pagerank_time);
+
   int counter = cnt[0];
   for (i = 1; i < NTHREADS; ++i)
   {
@@ -204,7 +205,7 @@ int pagerank_power(uint * const * R, uint const * RC, uint const * C, FLOAT** x,
     }
   }
 
-  pthread_barrier_destroy(&barrier);
+  free((void*) wells);
   free((void*) z);
   return counter;
 }

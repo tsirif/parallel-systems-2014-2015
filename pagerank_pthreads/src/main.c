@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 
 #include "pagerank_pthreads/defines.h"
 #include "pagerank_pthreads/utils.h"
@@ -36,8 +35,6 @@ int main(int argc, char *argv[])
     opt = 0;
   }
 
-  struct timeval startwtime, endwtime;
-
   printf("Reading graph and save it to a matrix\n");
 #ifndef PTHREADS
   uint **L, *C, N, E;
@@ -51,16 +48,11 @@ int main(int argc, char *argv[])
   int cnt;
 
   printf("Execute power pagerank algorithm\n");
-  gettimeofday(&startwtime, NULL);
 #ifndef PTHREADS
   cnt = pagerank_power(L, C, &x, N);
 #else
   cnt = pagerank_power(R, RC, LC, &x, N);
 #endif  // PTHREADS
-  gettimeofday(&endwtime, NULL);
-  double pagerank_time = (double)((endwtime.tv_usec - startwtime.tv_usec)
-      /1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
-  printf("Time to compute pagerank vector: %f\n", pagerank_time);
 
   printf("Output result to file\n");
   if (opt)
