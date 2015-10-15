@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(pagerank_pthreads C)
 include(CTest)
 
+set(CMAKE_BUILD_TYPE Release)
+
 find_package(Threads REQUIRED)
 
 include_directories(include)
