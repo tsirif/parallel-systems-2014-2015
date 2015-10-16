@@ -1,0 +1,3 @@
+[submodule "cuda_of_life"]
+	path = cuda_of_life
+	url = git@github.com:tsirif/cuda_of_life.git
